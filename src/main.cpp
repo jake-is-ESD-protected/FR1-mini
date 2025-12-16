@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "sdcard.h"
 #include "adc_base.h"
+#include "uii.h"
 
 typedef e_syserr_t (*init_func)(void);
 
@@ -16,6 +17,7 @@ typedef enum e_fr1_module_t{
     e_fr1_module_fsm,
     e_fr1_module_sdcard,
     e_fr1_module_adc,
+    e_fr1_module_uii,
     e_FR1_NUM_MODULES
 }e_fr1_module_t;
 
@@ -23,14 +25,16 @@ static init_func init_funcs[e_FR1_NUM_MODULES] = {
     audio_init_default,
     fsm_init_default,
     sd_init_default,
-    adc_base_init_default
+    adc_base_init_default,
+    uii_exti_init
 };
 
 const char init_func_ids [e_FR1_NUM_MODULES][12] = {
     AUDIO_SERVER_JOB_NAME,
     FSM_CTRL_JOB_NAME,
     SDCARD_SERVER_JOB_NAME,
-    ADC_BASE_JOB_NAME
+    ADC_BASE_JOB_NAME,
+    "uii",
 };
 
 void fr1_system_init(void){
