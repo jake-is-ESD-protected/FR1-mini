@@ -43,6 +43,18 @@ void uio_oled_idle_screen(void){
     uio_oled_rotate_show();
 }
 
+void uio_oled_rec_screen(void){
+    oled.reset(true);
+    // draw bitmap here
+    uio_oled_rotate_show();
+}
+
+void uio_oled_sett_screen(void){
+    oled.reset(true);
+    // draw bitmap here
+    uio_oled_rotate_show();
+}
+
 void uio_oled_update_db(int16_t val){
     static uint8_t soft_clk_div = 0;
     if(soft_clk_div == OLED_VISUAL_TXT_UPD){
@@ -58,6 +70,20 @@ void uio_oled_update_db_text(int16_t val){
     oled.rectangleFill(0, 0, 40, 8, COLOR_BLACK);
     oled.setCursor(0,0);
     oled.printf("%d dB", val);
+}
+
+void uio_oled_update_battery(uint16_t val){
+    if(val > ADC_LIPO_LVL_MAX_MV) val = ADC_LIPO_LVL_MAX_MV;
+    int16_t range = map(val, 
+                         ADC_LIPO_LVL_MIN_MV, 
+                         ADC_LIPO_LVL_MAX_MV, 
+                         0,
+                         UIO_OLED_WGT_BATT_W);
+    oled.rectangleFill(UIO_OLED_WGT_BATT_X,
+                       UIO_OLED_WGT_BATT_Y, 
+                       range, 
+                       UIO_OLED_WGT_BATT_H, 
+                       1);
 }
 
 void uio_oled_update_db_vu(int16_t val){
@@ -82,21 +108,81 @@ uint8_t uio_oled_db_to_deg(int16_t db){
 void uio_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
-    uio_update_priority_t prio;
+    static uio_update_priority_t prio;
+    static fsm_runtime_args_t rta_old;
+    static fsm_state_t state_new;
     while(1){
         prio = (uio_update_priority_t)(uint32_t)jes_wait_for_notification();
         fsm_runtime_args_t rta = fsm_get_runtime_args();
         fsm_runtime_values_t rtv = fsm_get_runtime_values();
-        
-        uio_oled_update_db_vu((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs.l));
-        if(prio == uio_update_mid){
+
+        if(rta.cur_state != rta_old.cur_state){
+            // on change event
+            switch (rta.cur_state)
+            {
+            case e_fsm_state_idle:
+                uio_oled_idle_screen();
+                break;
             
+            case e_fsm_state_rec:
+                uio_oled_rec_screen();
+                break;
+            
+            case e_fsm_state_sett:
+                uio_oled_sett_screen();
+                break;
+            default:
+                break;
+            }            
         }
+
+        // idle
+        if(rta.cur_state == e_fsm_state_idle){
+            uio_oled_update_db_vu((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg.l));
+            if(prio == uio_update_mid){
+                uio_oled_update_db_text((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg.l));
+            }
+            if(prio == uio_update_all){
+                
+            }
+        }
+
+        // rec
+        if(rta.cur_state == e_fsm_state_rec){
+
+            if(prio == uio_update_mid){
+
+            }
+            if(prio == uio_update_all){
+                
+            }
+        }
+
+        // sett
+        if(rta.cur_state == e_fsm_state_sett){
+
+            if(prio == uio_update_mid){
+                uint32_t lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
+                uint32_t plug_mv = adc_base_get_mv(ADC_PLUG_DETECT_PIN);
+                oled.rectangleFill(0, 10, 23, 8, COLOR_BLACK);
+                oled.rectangleFill(0, 26, 23, 8, COLOR_BLACK);
+                oled.setCursor(1, 2);
+                oled.printf("LiPo: \n\r%d mV\n\r", lipo_mv);
+                oled.printf("Plug: \n\r%d mV\n\r", plug_mv);
+            }
+            if(prio == uio_update_all){
+                
+            }
+        }
+
+
         if(prio == uio_update_all){
-            uio_oled_update_db_text((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs.l));
-            adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
+            uint32_t lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
             adc_base_get_mv(ADC_PLUG_DETECT_PIN);
+            uio_oled_update_battery(lipo_mv);
         }
+        uio_oled_rotate_show();
+        rta_old = rta;
     }
 }
 

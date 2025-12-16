@@ -6,6 +6,8 @@
 #define ADC_LIPO_LEVEL_PIN (uint8_t)35
 #define ADC_PLUG_DETECT_PIN (uint8_t)32
 #define ADC_BASE_JOB_NAME "adc"
+#define ADC_LIPO_LVL_MIN_MV 3600    // estimation
+#define ADC_LIPO_LVL_MAX_MV 3900    // estimation
 
 /// @brief 
 /// @param pin 

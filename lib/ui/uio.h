@@ -13,6 +13,11 @@
 #define OLED_VISUAL_VUM_Y   46   
 #define OLED_VISUAL_TXT_UPD 6
 
+#define UIO_OLED_WGT_BATT_X 56
+#define UIO_OLED_WGT_BATT_Y 1
+#define UIO_OLED_WGT_BATT_W 8
+#define UIO_OLED_WGT_BATT_H 4
+
 #define UIO_JOB_NAME "uio"
 
 e_syserr_t uio_init(void);
