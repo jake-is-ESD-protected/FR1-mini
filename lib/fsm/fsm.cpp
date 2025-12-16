@@ -205,8 +205,9 @@ void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_
     rtv.raw_data = buf;
     rtv.len = AUDIO_FRAME_LEN;
     rtv.msqr = dsp_fr1_samples_to_msqr_32b(rtv.raw_data, rtv.len);
+    rtv.msqr_avg = dsp_fr1_msqr_rolling_avg(rtv.msqr);
     rtv.dbfs = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr);
-    uart_unif_writef("msqr: %f\n\r", rtv.msqr.r);
+    rtv.dbfs_avg = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr_avg);
     uint32_t delta = rt_args->samples_tot - rt_args->samples_to_process;
     rtv.t_transaction = (uint32_t)(((float)delta/(float)rt_args->sr) * 1000);
     rtv.t_system = esp_timer_get_time() / 1000;

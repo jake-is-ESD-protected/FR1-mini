@@ -42,3 +42,25 @@ stereo_value_t dsp_fr1_samples_to_dbfs_32b_from_msqr(stereo_value_t msqr){
     stereo_value_t dbfs = {.l = 10*log10f(msqr.l), .r = 10*log10f(msqr.r)};
     return dbfs;
 }
+
+stereo_value_t dsp_fr1_msqr_rolling_avg(stereo_value_t msqr){
+    static stereo_value_t win[DSP_FR1_ROLL_AVG_N];
+    static uint16_t roll_idx = 0;
+    static uint16_t samples_count = 0;
+    static stereo_value_t running_sum = {.l = 0., .r = 0.};
+    if (samples_count == DSP_FR1_ROLL_AVG_N) {
+        running_sum.l -= win[roll_idx].l;
+        running_sum.r -= win[roll_idx].r;
+    } else {
+        samples_count++;
+    }
+    win[roll_idx] = msqr;
+    running_sum.l += msqr.l;
+    running_sum.r += msqr.r;
+    if (++roll_idx == DSP_FR1_ROLL_AVG_N) roll_idx = 0;
+    stereo_value_t msqr_avg = {
+        .l = running_sum.l / (float)samples_count,
+        .r = running_sum.r / (float)samples_count
+    };
+    return msqr_avg;
+}

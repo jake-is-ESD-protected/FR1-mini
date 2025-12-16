@@ -63,7 +63,9 @@ typedef struct fsm_runtime_values_t{
     stereo_sample_t* raw_data;
     uint32_t len;
     stereo_value_t msqr;
+    stereo_value_t msqr_avg;
     stereo_value_t dbfs;
+    stereo_value_t dbfs_avg;
     uint32_t t_transaction;
     int64_t t_system;
 }fsm_runtime_values_t;

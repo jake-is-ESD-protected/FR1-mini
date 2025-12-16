@@ -11,15 +11,33 @@
 #define INT24_SCALE (1.0f / 8388608.0f)
 #define DSP_FR1_DC_FILTER_ALPHA (0.001)
 
+#define DSP_FR1_ROLL_AVG_N 10
+
 /// @brief Fast sine approximation based on Bhaskara I algorithm.
 /// @param x Wrapped or unwrapped phase.
 /// @return Sine approximation.
 inline float sin_bhaskara_I(float x);
 
+/// @brief 
+/// @param data 
+/// @param len 
+/// @return 
 stereo_value_t dsp_fr1_samples_to_msqr_32b(stereo_sample_t* data, uint32_t len);
 
+/// @brief 
+/// @param data 
+/// @param len 
+/// @return 
 stereo_value_t dsp_fr1_samples_to_dbfs_32b(stereo_sample_t* data, uint32_t len);
 
+/// @brief 
+/// @param msqr 
+/// @return 
 stereo_value_t dsp_fr1_samples_to_dbfs_32b_from_msqr(stereo_value_t msqr);
+
+/// @brief 
+/// @param msqr 
+/// @return 
+stereo_value_t dsp_fr1_msqr_rolling_avg(stereo_value_t msqr);
 
 #endif
