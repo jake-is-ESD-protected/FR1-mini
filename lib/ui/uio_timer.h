@@ -12,7 +12,7 @@
 
 typedef enum{
     uio_update_fast = 1,
-    uio_update_mid = 5,
+    uio_update_mid = 20,
     uio_update_all = 100 // all includes slow updates
 }uio_update_priority_t;
 
