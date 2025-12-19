@@ -89,15 +89,19 @@ void record_job(void* p){
         e_syserr_t e;
 
         if(arg == NULL){
-            SCOPE_LOG_PJ(pj, "Usage: record [start, stop] (-s samples).");
+            SCOPE_LOG_PJ(pj, "Usage: record [start, stop, toggle] (-s samples).");
             continue;
         }
         
         // check if SD can be reached
         if(!sd_is_mounted()){
-            SCOPE_LOG_PJ(pj, "Cannot record, SD not mounted.");
-            jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
-            continue;
+            e = sd_mnt();
+            if(e != e_syserr_none){
+                SCOPE_LOG_PJ(pj, "Cannot mount SD.");
+                jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
+                continue;
+            }
+            SCOPE_LOG_PJ(pj, "Mounted SD.");
         }
         
         // check if enough space is available on SD card
@@ -114,6 +118,15 @@ void record_job(void* p){
             continue;
         }
         uint32_t max_samples = free_kbytes * 1024 * sizeof(stereo_sample_t); 
+
+        if(strcmp(arg, "toggle") == 0){
+            if(rta.cur_state == e_fsm_state_rec){
+                arg = (char*)"stop";
+            }
+            else{
+                arg = (char*)"start";
+            }
+        }
         
         if(strcmp(arg, "start") == 0){
             if(rta.cur_state == e_fsm_state_rec){
