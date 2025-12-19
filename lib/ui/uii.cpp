@@ -1,5 +1,7 @@
 #include <Arduino.h>
+#include <jescore.h>
 #include "uii.h"
+#include "fsm.h"
 
 TickType_t uii_small_button_ts = 0;
 TickType_t uii_big_button_ts = 0;
@@ -8,6 +10,11 @@ TickType_t uii_big_button_ts = 0;
 /// @param p 
 /// @return 
 static inline void IRAM_ATTR uii_exti_handler(void* p);
+
+/// @brief 
+/// @param ts 
+/// @return 
+static inline void IRAM_ATTR uii_big_big_button_handler(TickType_t ts);
 
 static inline e_syserr_t ui_exti_init_pin(gpio_int_type_t edge, gpio_num_t pin, void(*handler)(void*),gpio_pullup_t pullup){
     gpio_config_t io_conf;
@@ -36,7 +43,9 @@ e_syserr_t uii_exti_init(void){
 
 
 static inline void IRAM_ATTR uii_exti_handler(void* p){
-    uii_exti_context_t ctxt;
+    static uii_exti_context_t old_ctxt;
+    old_ctxt.raw = 0;
+    static uii_exti_context_t ctxt;
     ctxt.raw = p;
     gpio_num_t pin = (gpio_num_t)ctxt.context.pin;
     gpio_int_type_t edge = (gpio_int_type_t)ctxt.context.edge;
@@ -49,7 +58,8 @@ static inline void IRAM_ATTR uii_exti_handler(void* p){
 
                 }
                 else{
-
+                    jes_launch_job_args(FSM_CTRL_JOB_NAME, FSM_RECORDING_JOB_NAME " toggle");
+                    // jes_launch_job_args(FSM_CTRL_JOB_NAME, FSM_SETTINGS_JOB_NAME);
                 }
                 uii_small_button_ts = now;
             }
@@ -61,7 +71,7 @@ static inline void IRAM_ATTR uii_exti_handler(void* p){
 
                 }
                 else{
-
+                    jes_launch_job_args(FSM_CTRL_JOB_NAME, FSM_SETTINGS_JOB_NAME);
                 }
                 uii_big_button_ts = now;
             }
@@ -70,4 +80,5 @@ static inline void IRAM_ATTR uii_exti_handler(void* p){
         default:
         break;
     }
+    old_ctxt = ctxt;
 }

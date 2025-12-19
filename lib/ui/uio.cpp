@@ -13,6 +13,7 @@ QwiicMicroOLED oled;
 e_syserr_t uio_init(void){
     jes_err_t je = jes_register_job(UIO_JOB_NAME, 2048, 1, uio_job, 1);
     if(je != e_err_no_err) return (e_syserr_t)je;
+    pinMode(UIO_LED_PIN, OUTPUT);
     uio_oled_init();
     return e_syserr_none;
 }
@@ -23,6 +24,24 @@ void uio_oled_init(void){
         // ret err
     }
     oled.display();
+}
+
+void uio_led_on(void){
+    digitalWrite(UIO_LED_PIN, HIGH);
+}
+
+void uio_led_off(void){
+    digitalWrite(UIO_LED_PIN, LOW);
+}
+
+void uio_led_toggle(void){
+    static uint8_t on = 0;
+    on = !on;
+    digitalWrite(UIO_LED_PIN, on);
+}
+
+void uio_led_level(uint8_t lvl){
+    analogWrite(UIO_LED_PIN, lvl);
 }
 
 void uio_oled_rotate_show(void){
@@ -69,7 +88,7 @@ void uio_oled_update_db(int16_t val){
 void uio_oled_update_db_text(int16_t val){
     oled.rectangleFill(0, 0, 40, 8, COLOR_BLACK);
     oled.setCursor(0,0);
-    oled.printf("%d dB", val);
+    oled.printf("%d dB(Z)", val);
 }
 
 void uio_oled_update_battery(uint16_t val){
@@ -116,6 +135,7 @@ void uio_job(void* p){
         fsm_runtime_args_t rta = fsm_get_runtime_args();
         fsm_runtime_values_t rtv = fsm_get_runtime_values();
 
+        // set up page
         if(rta.cur_state != rta_old.cur_state){
             // on change event
             switch (rta.cur_state)
@@ -136,7 +156,7 @@ void uio_job(void* p){
             }            
         }
 
-        // idle
+        // idle routine
         if(rta.cur_state == e_fsm_state_idle){
             uio_oled_update_db_vu((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg.l));
             if(prio == uio_update_mid){
@@ -147,9 +167,13 @@ void uio_job(void* p){
             }
         }
 
-        // rec
+        // rec routine
         if(rta.cur_state == e_fsm_state_rec){
-
+            oled.rectangleFill(0, 10, 23, 8, COLOR_BLACK);
+            oled.rectangleFill(0, 26, 23, 8, COLOR_BLACK);
+            oled.setCursor(1, 2);
+            oled.printf("rec: \n\r%d ms\n\r", rtv.t_transaction);
+            oled.printf("sys: \n\r%d s\n\r", rtv.t_system / 1000);
             if(prio == uio_update_mid){
 
             }
@@ -158,17 +182,15 @@ void uio_job(void* p){
             }
         }
 
-        // sett
+        // sett routine
         if(rta.cur_state == e_fsm_state_sett){
 
             if(prio == uio_update_mid){
-                uint32_t lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
-                uint32_t plug_mv = adc_base_get_mv(ADC_PLUG_DETECT_PIN);
                 oled.rectangleFill(0, 10, 23, 8, COLOR_BLACK);
                 oled.rectangleFill(0, 26, 23, 8, COLOR_BLACK);
                 oled.setCursor(1, 2);
-                oled.printf("LiPo: \n\r%d mV\n\r", lipo_mv);
-                oled.printf("Plug: \n\r%d mV\n\r", plug_mv);
+                oled.printf("LiPo: \n\r%d mV\n\r", rtv.lipo_mv);
+                oled.printf("Plug: \n\r%d mV\n\r", rtv.plug_mv);
             }
             if(prio == uio_update_all){
                 
@@ -177,9 +199,10 @@ void uio_job(void* p){
 
 
         if(prio == uio_update_all){
-            uint32_t lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
-            adc_base_get_mv(ADC_PLUG_DETECT_PIN);
-            uio_oled_update_battery(lipo_mv);
+            uio_oled_update_battery(rtv.lipo_mv);
+            if(rtv.lipo_mv < 3700){
+                // low battery popup
+            }
         }
         uio_oled_rotate_show();
         rta_old = rta;

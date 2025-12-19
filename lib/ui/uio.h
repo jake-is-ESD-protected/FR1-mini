@@ -18,11 +18,21 @@
 #define UIO_OLED_WGT_BATT_W 8
 #define UIO_OLED_WGT_BATT_H 4
 
+#define UIO_LED_PIN 5
+
 #define UIO_JOB_NAME "uio"
 
 e_syserr_t uio_init(void);
 
 void uio_oled_init(void);
+
+void uio_led_on(void);
+
+void uio_led_off(void);
+
+void uio_led_toggle(void);
+
+void uio_led_level(uint8_t lvl);
 
 void uio_oled_rotate_show(void);
 

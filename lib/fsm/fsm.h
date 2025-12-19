@@ -18,6 +18,8 @@
 #define FSM_RECORDING_JOB_NAME  "record"
 #define FSM_SETTINGS_JOB_NAME   "sett"
 
+#define FSM_UPDATE_SLOW_RATE_S  8 // every 8 seconds, the FSM updates "slow" values
+
 #ifndef FSM_INTERNAL_VERBOSE
 #define FSM_INTERNAL_VERBOSE 0
 #endif // FSM_INTERNAL_VERBOSE
@@ -55,6 +57,7 @@ typedef struct fsm_runtime_args_t{
     uint32_t sr;
     uint32_t bps;
     uint8_t n_ch;
+    uint8_t sd_mounted;
     void* var_args;
 }fsm_runtime_args_t;
 
@@ -68,6 +71,8 @@ typedef struct fsm_runtime_values_t{
     stereo_value_t dbfs_avg;
     uint32_t t_transaction;
     int64_t t_system;
+    uint32_t lipo_mv;
+    uint32_t plug_mv;
 }fsm_runtime_values_t;
 
 /// @brief State execution routine type.

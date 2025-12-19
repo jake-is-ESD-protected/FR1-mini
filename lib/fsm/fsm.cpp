@@ -7,6 +7,17 @@
 #include <driver/i2s.h>
 #include "audio.h"
 #include "wav.h"
+#include "adc_base.h"
+
+/// @brief Callback for fetching basic system data. 
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+static inline void fsm_static_base_cb(fsm_runtime_args_t* rta);
+
+/// @brief Callback for audio processing.
+/// @param buf Audio buffer.
+/// @param len Length of buffer.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rta);
 
 /// @brief Enter routine for idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -143,12 +154,26 @@ e_syserr_t fsm_init(void){
         .sr = 0,
         .bps = 0,
         .n_ch = 0,
+        .sd_mounted = 0,
         .var_args = NULL,
+    };
+    fsm_runtime_values_t rtv = {
+        .raw_data = rta.data_buf,
+        .len = rta.data_len,
+        .msqr = {.l = 0., .r = 0.},
+        .msqr_avg = {.l = 0., .r = 0.},
+        .dbfs = {.l = 0., .r = 0.},
+        .dbfs_avg = {.l = 0., .r = 0.},
+        .t_transaction = 0,
+        .t_system = 0,
+        .lipo_mv = 0,
+        .plug_mv = 0,
     };
     lock_interface = xSemaphoreCreateMutex();
     e_syserr_t e = fsm_enter_idle(&rta);
     if(e != e_syserr_none) { return e; }
     fsm_update_runtime_args(&rta);
+    fsm_update_runtime_values(&rtv);
 
     jes_err_t je; 
     je = jes_register_job(FSM_CTRL_JOB_NAME, 2048, 1, fsm_job, 0);
@@ -200,17 +225,32 @@ static inline void fsm_update_samples_to_process(uint32_t samples){
     }
 }
 
-void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
-    fsm_runtime_values_t rtv;
+static inline void fsm_static_base_cb(fsm_runtime_args_t* rt_args){
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
+    // hardcoded
+    const uint16_t softclock_max = AUDIO_SR_DEFAULT / (AUDIO_FRAME_LEN/FSM_UPDATE_SLOW_RATE_S); 
+    static uint16_t softclock = softclock_max - 1;
+    static uint16_t adc_lipo_last_mv;
+    static uint16_t adc_plug_last_mv;
+    if(++softclock == softclock_max){
+        softclock = 0;
+        adc_lipo_last_mv = rtv.lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
+        adc_plug_last_mv = rtv.plug_mv = adc_base_get_mv(ADC_PLUG_DETECT_PIN);
+    }
+    uint32_t delta = rt_args->samples_tot - rt_args->samples_to_process;
+    rtv.t_transaction = (uint32_t)(((float)delta/(float)rt_args->sr) * 1000);
+    rtv.t_system = esp_timer_get_time() / 1000;
+    fsm_update_runtime_values(&rtv);
+}
+
+static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
     rtv.raw_data = buf;
     rtv.len = AUDIO_FRAME_LEN;
     rtv.msqr = dsp_fr1_samples_to_msqr_32b(rtv.raw_data, rtv.len);
     rtv.msqr_avg = dsp_fr1_msqr_rolling_avg(rtv.msqr);
     rtv.dbfs = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr);
     rtv.dbfs_avg = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr_avg);
-    uint32_t delta = rt_args->samples_tot - rt_args->samples_to_process;
-    rtv.t_transaction = (uint32_t)(((float)delta/(float)rt_args->sr) * 1000);
-    rtv.t_system = esp_timer_get_time() / 1000;
     fsm_update_runtime_values(&rtv);
 }
 
@@ -276,6 +316,13 @@ static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
         return e; 
     }
     // memset(rta->wav_file, 0, sizeof(wav_file_t)); /// TODO:
+    // e = sd_unmnt();
+    // if(e != e_syserr_none) {
+    //     #if FSM_INTERNAL_VERBOSE == 1
+    //     SCOPE_LOG("err: %d, unable to unmount SD card", e);
+    //     #endif
+    //     return e; 
+    // }
     rta->samples_to_process = 0;
     rta->samples_tot = 0;
     fsm.cur_state = e_fsm_state_trans;
@@ -296,15 +343,25 @@ static inline void fsm_idle(fsm_runtime_args_t* rta){
     static uint8_t frame_pos = 0;
     audio_read(&audio_buf[rta->data_len*(frame_pos)], rta->data_len);
     fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
+    fsm_static_base_cb(rta);
     frame_pos = !frame_pos;
 }
 
 static inline void fsm_record(fsm_runtime_args_t* rta) {
+    e_syserr_t e;
     static uint8_t frame_pos = 0;
     static uint8_t test = 0;
     audio_read(&audio_buf[rta->data_len * frame_pos], rta->data_len);
     fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
-    wav_write_samples(rta->wav_file, &audio_buf[rta->data_len * (!frame_pos)], rta->data_len);
+    fsm_static_base_cb(rta);
+    e = wav_write_samples(rta->wav_file, &audio_buf[rta->data_len * (!frame_pos)], rta->data_len);
+    if(e != e_syserr_none && e != e_syserr_oom){
+        rta->samples_to_process = 0;
+        // this is an assumption:
+        uart_unif_writef("record routine died: %d\n\r", e);
+        jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
+        // sd_unmnt();
+    }
     if (rta->samples_to_process > rta->data_len) {
         rta->samples_to_process -= rta->data_len;
     } else {
@@ -318,7 +375,7 @@ static inline void fsm_record(fsm_runtime_args_t* rta) {
 }
 
 static inline void fsm_sett(fsm_runtime_args_t* rta){
-    
+    fsm_static_base_cb(rta);
 }
 
 void fsm_routine_state(fsm_state_t s, fsm_runtime_args_t* rta){
@@ -327,6 +384,7 @@ void fsm_routine_state(fsm_state_t s, fsm_runtime_args_t* rta){
 }
 
 e_syserr_t fsm_transition(fsm_state_t from, fsm_state_t to, fsm_runtime_args_t* rta){
+    audio_suspend_short();
     e_syserr_t e;
     #if FSM_INTERNAL_VERBOSE == 1
     SCOPE_LOG("Exiting <%d>!", from);
