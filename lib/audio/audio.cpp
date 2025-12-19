@@ -83,6 +83,7 @@ void audio_sampler(void* p){
         if (xQueueReceive(audio_evt_queue_in, &evt, portMAX_DELAY) == pdPASS){
             if(evt.type == (i2s_event_type_t)I2S_EVENT_RESTART){
                 jes_delay_job_ms(AUDIO_I2S_RESTART_MS);
+                SCOPE_LOG_PJ(pj, "Audio was restarted!");
                 continue;
             }
             state->routine(&state->rt_args);
