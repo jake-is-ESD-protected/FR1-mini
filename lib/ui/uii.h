@@ -5,8 +5,8 @@
 #include "driver/gpio.h"
 #include <inttypes.h>
 
-#define UII_BIG_BUTTON_PIN (gpio_num_t)18
-#define UII_SMALL_BUTTON_PIN (gpio_num_t)12
+#define UII_BIG_BUTTON_PIN (gpio_num_t)19
+#define UII_SMALL_BUTTON_PIN (gpio_num_t)18
 #define UII_EXTI_BIG_BUTTON_DEBOUNCE_TICKS      500
 #define UII_EXTI_SMALL_BUTTON_DEBOUNCE_TICKS    500
 
