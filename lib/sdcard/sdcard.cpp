@@ -17,6 +17,7 @@ static esp_vfs_fat_sdmmc_mount_config_t mount_config;
 static sdmmc_card_t* card;
 static uint8_t mounted = 0;
 static spi_bus_config_t bus_cfg;
+static SemaphoreHandle_t stream_lock;
 
 e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz){
     if(max_freq_khz > SDMMC_FREQ_HIGHSPEED) return e_syserr_param;
@@ -45,6 +46,7 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz){
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         return e_syserr_driver_fail;
     }
+    stream_lock = xSemaphoreCreateMutex();
     jes_err_t je;
     je = jes_register_job(SDCARD_SERVER_JOB_NAME, 2*4096, 1, sd_job, 0);
     if(je != e_err_no_err) { jes_throw_error(je); return (e_syserr_t)je;}
@@ -168,7 +170,9 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
 e_syserr_t sd_stream_in(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_w){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
+    xSemaphoreTake(stream_lock, portMAX_DELAY);
     *points_w = fwrite(data, sizeof(stereo_sample_t), len, f);
+    xSemaphoreGive(stream_lock);
     if(*points_w != len) { 
         return e_syserr_oom; 
     }
@@ -178,7 +182,9 @@ e_syserr_t sd_stream_in(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* 
 e_syserr_t sd_stream_out(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_r){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
+    xSemaphoreTake(stream_lock, portMAX_DELAY);
     *points_r = fread(data, sizeof(stereo_sample_t), len, f);
+    xSemaphoreGive(stream_lock);
     if(*points_r != len) { 
         return e_syserr_oom; 
     }
@@ -204,7 +210,9 @@ FILE* sd_stream_write_open(const char* fname){
 }
 
 void sd_stream_close(FILE* f){
+    xSemaphoreTake(stream_lock, portMAX_DELAY);
     fclose(f);
+    xSemaphoreGive(stream_lock);
 }
 
 e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t len) {
