@@ -75,7 +75,8 @@ void uio_oled_idle_screen(void){
 
 void uio_oled_rec_screen(void){
     oled.clearDisplay();
-    // draw bitmap here
+    oled.drawBitmap(0, 0, rec_screen, 
+        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
     uio_oled_rotate_show();
 }
 
