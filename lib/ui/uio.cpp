@@ -3,12 +3,13 @@
 #include "uio_timer.h"
 #include "fsm.h"
 #include "bitmaps.h"
-#include "SparkFun_Qwiic_OLED.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include "Wire.h"
 #include "adc_base.h"
 #include "dsp_fr1.h"
 
-QwiicMicroOLED oled;
+Adafruit_SSD1306 oled(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, &Wire, OLED_RESET);
 
 e_syserr_t uio_init(void){
     jes_err_t je = jes_register_job(UIO_JOB_NAME, 2048, 1, uio_job, 1);
@@ -20,9 +21,19 @@ e_syserr_t uio_init(void){
 
 void uio_oled_init(void){
     Wire.begin();
-    if (!oled.begin()){
+    if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)){
         // ret err
     }
+    oled.begin(SSD1306_SWITCHCAPVCC, 0x3D);
+    // FR1 mini screen is soldered upside down
+    oled.setRotation(2);
+    // Set support for 64x48 on HW level
+    oled.ssd1306_command(SSD1306_SETMULTIPLEX);
+    oled.ssd1306_command(0x2F);  // 48-1 = 47
+    oled.ssd1306_command(SSD1306_SETDISPLAYOFFSET);
+    oled.ssd1306_command(0x00);  // No offset
+    oled.ssd1306_command(SSD1306_SETCOMPINS);
+    oled.ssd1306_command(0x12);
     oled.display();
 }
 
@@ -45,31 +56,31 @@ void uio_led_level(uint8_t lvl){
 }
 
 void uio_oled_rotate_show(void){
-    // oled.flipHorizontal(true);
-    // oled.flipVertical(true);
     oled.display();
 }
 
 void uio_oled_title_screen(void){
-    oled.reset(true);
-    oled.bitmap(0, 0, BMP_TITLE_SCREEN);
+    oled.clearDisplay();
+    oled.drawBitmap(0, 0, title_screen, 
+        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
     uio_oled_rotate_show();
 }
 
 void uio_oled_idle_screen(void){
-    oled.reset(true);
-    oled.bitmap(0, 0, BMP_IDLE_SCREEN);
+    oled.clearDisplay();
+    oled.drawBitmap(0, 0, idle_screen, 
+        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
     uio_oled_rotate_show();
 }
 
 void uio_oled_rec_screen(void){
-    oled.reset(true);
+    oled.clearDisplay();
     // draw bitmap here
     uio_oled_rotate_show();
 }
 
 void uio_oled_sett_screen(void){
-    oled.reset(true);
+    oled.clearDisplay();
     // draw bitmap here
     uio_oled_rotate_show();
 }
@@ -86,7 +97,9 @@ void uio_oled_update_db(int16_t val){
 }
 
 void uio_oled_update_db_text(int16_t val){
-    oled.rectangleFill(0, 0, 40, 8, COLOR_BLACK);
+    oled.fillRect(0, 0, 40, 8, BLACK);
+    oled.setTextSize(1);
+    oled.setTextColor(WHITE);
     oled.setCursor(0,0);
     oled.printf("%d dB(Z)", val);
 }
@@ -98,7 +111,7 @@ void uio_oled_update_battery(uint16_t val){
                          ADC_LIPO_LVL_MAX_MV, 
                          0,
                          UIO_OLED_WGT_BATT_W);
-    oled.rectangleFill(UIO_OLED_WGT_BATT_X,
+    oled.fillRect(UIO_OLED_WGT_BATT_X,
                        UIO_OLED_WGT_BATT_Y, 
                        range, 
                        UIO_OLED_WGT_BATT_H, 
@@ -111,8 +124,8 @@ void uio_oled_update_db_vu(int16_t val){
     static uint8_t tip_y_prev = OLED_VISUAL_VUM_Y;
     uint8_t tip_x = 32 + (int8_t)(OLED_VISUAL_VUM_RAD * cosf(rad));
     uint8_t tip_y = 48 - (uint8_t)(OLED_VISUAL_VUM_RAD * sinf(rad));
-    oled.line(OLED_VISUAL_VUM_X, OLED_VISUAL_VUM_Y, tip_x_prev, tip_y_prev, COLOR_BLACK);
-    oled.line(OLED_VISUAL_VUM_X, OLED_VISUAL_VUM_Y, tip_x, tip_y, COLOR_WHITE);
+    oled.drawLine(OLED_VISUAL_VUM_X, OLED_VISUAL_VUM_Y, tip_x_prev, tip_y_prev, BLACK);
+    oled.drawLine(OLED_VISUAL_VUM_X, OLED_VISUAL_VUM_Y, tip_x, tip_y, WHITE);
     tip_x_prev = tip_x;
     tip_y_prev = tip_y;
 }
@@ -169,8 +182,8 @@ void uio_job(void* p){
 
         // rec routine
         if(rta.cur_state == e_fsm_state_rec){
-            oled.rectangleFill(0, 10, 23, 8, COLOR_BLACK);
-            oled.rectangleFill(0, 26, 23, 8, COLOR_BLACK);
+            oled.fillRect(0, 10, 23, 8, BLACK);
+            oled.fillRect(0, 26, 23, 8, BLACK);
             oled.setCursor(1, 2);
             oled.printf("rec: \n\r%d ms\n\r", rtv.t_transaction);
             oled.printf("sys: \n\r%d s\n\r", rtv.t_system / 1000);
@@ -186,8 +199,8 @@ void uio_job(void* p){
         if(rta.cur_state == e_fsm_state_sett){
 
             if(prio == uio_update_mid){
-                oled.rectangleFill(0, 10, 23, 8, COLOR_BLACK);
-                oled.rectangleFill(0, 26, 23, 8, COLOR_BLACK);
+                oled.fillRect(0, 10, 23, 8, BLACK);
+                oled.fillRect(0, 26, 23, 8, BLACK);
                 oled.setCursor(1, 2);
                 oled.printf("LiPo: \n\r%d mV\n\r", rtv.lipo_mv);
                 oled.printf("Plug: \n\r%d mV\n\r", rtv.plug_mv);
@@ -207,22 +220,4 @@ void uio_job(void* p){
         uio_oled_rotate_show();
         rta_old = rta;
     }
-}
-
-void uio_oled_refresh_test(void){
-    unsigned long start_time, end_time, refresh_time;
-    oled.reset(true);
-    start_time = millis();
-    for(int i=0; i<48; i++){
-        oled.pixel(i, i);
-        uio_oled_rotate_show();
-    }
-    end_time = millis();
-    refresh_time = end_time - start_time;
-    oled.reset(true);
-    oled.setCursor(0,0);
-    oled.print("Refresh \n\rtime:\n\r");
-    oled.print(refresh_time);
-    oled.print(" ms");
-    uio_oled_rotate_show();
 }

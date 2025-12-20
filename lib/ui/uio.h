@@ -4,6 +4,11 @@
 #include "syserr.h"
 #include <inttypes.h>
 
+#define SSD1306_LCDWIDTH 64
+#define SSD1306_LCDHEIGHT 48
+#define OLED_RESET -1
+#define OLED_I2C_ADDRESS 0x3D
+
 #define OLED_VISUAL_DB_MAX  105
 #define OLED_VISUAL_DB_MIN  15
 #define OLED_VISUAL_DEG_MAX 159
@@ -49,7 +54,5 @@ void uio_oled_update_db_vu(int16_t val);
 uint8_t uio_oled_db_to_deg(int16_t db);
 
 void uio_job(void* p);
-
-void uio_oled_refresh_test(void);
 
 #endif // _UIO_H_
