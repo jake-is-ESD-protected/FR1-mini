@@ -89,6 +89,7 @@ void uio_oled_rec_screen(void){
 void uio_oled_sett_screen(void){
     oled.clearDisplay();
     // draw bitmap here
+    uio_oled_draw_widgets_all();
 }
 
 void uio_oled_update_db(int16_t val){
