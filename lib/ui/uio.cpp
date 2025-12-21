@@ -55,35 +55,40 @@ void uio_led_level(uint8_t lvl){
     analogWrite(UIO_LED_PIN, lvl);
 }
 
-void uio_oled_rotate_show(void){
-    oled.display();
+void uio_oled_draw_widgets_all(void){
+    oled.drawBitmap(BATTERY_POS_X, BATTERY_POS_Y, battery, 
+        BATTERY_WIDTH, BATTERY_HEIGHT, WHITE);
+    oled.drawBitmap(SETTINGS_POS_X, SETTINGS_POS_Y, settings, 
+        SETTINGS_WIDTH, SETTINGS_HEIGHT, WHITE);
+    oled.drawBitmap(FILES_POS_X, FILES_POS_Y, files, 
+        FILES_WIDTH, FILES_HEIGHT, WHITE);
 }
 
 void uio_oled_title_screen(void){
     oled.clearDisplay();
+    oled.display();
     oled.drawBitmap(0, 0, title_screen, 
         SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
-    uio_oled_rotate_show();
+    oled.display();
 }
 
 void uio_oled_idle_screen(void){
     oled.clearDisplay();
     oled.drawBitmap(0, 0, idle_screen, 
         SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
-    uio_oled_rotate_show();
+    uio_oled_draw_widgets_all();
 }
 
 void uio_oled_rec_screen(void){
     oled.clearDisplay();
     oled.drawBitmap(0, 0, rec_screen, 
         SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
-    uio_oled_rotate_show();
+    uio_oled_draw_widgets_all();
 }
 
 void uio_oled_sett_screen(void){
     oled.clearDisplay();
     // draw bitmap here
-    uio_oled_rotate_show();
 }
 
 void uio_oled_update_db(int16_t val){
@@ -94,7 +99,6 @@ void uio_oled_update_db(int16_t val){
     }
     uio_oled_update_db_vu(val);
     soft_clk_div++;
-    uio_oled_rotate_show();
 }
 
 void uio_oled_update_db_text(int16_t val){
@@ -183,11 +187,17 @@ void uio_job(void* p){
 
         // rec routine
         if(rta.cur_state == e_fsm_state_rec){
-            oled.fillRect(0, 10, 23, 8, BLACK);
-            oled.fillRect(0, 26, 23, 8, BLACK);
-            oled.setCursor(1, 2);
-            oled.printf("rec: \n\r%d ms\n\r", rtv.t_transaction);
-            oled.printf("sys: \n\r%d s\n\r", rtv.t_system / 1000);
+            oled.setTextSize(1);
+            oled.fillRect(0, 10, 53, 8, BLACK);
+            uint32_t total_seconds = rtv.t_transaction / 1000;
+            uint8_t hours = total_seconds / 3600;
+            uint8_t minutes = (total_seconds % 3600) / 60;
+            uint8_t seconds = total_seconds % 60;
+            uint8_t ms = (rtv.t_transaction % 1000) / 10;
+            // oled.fillRect(0, 26, 23, 8, BLACK);
+            oled.setCursor(0, 10);
+            oled.printf("%02d:%02d:%02d", minutes, seconds, ms);
+            // oled.printf("sys: \n\r%d s\n\r", rtv.t_system / 1000);
             if(prio == uio_update_mid){
 
             }
@@ -200,11 +210,13 @@ void uio_job(void* p){
         if(rta.cur_state == e_fsm_state_sett){
 
             if(prio == uio_update_mid){
-                oled.fillRect(0, 10, 23, 8, BLACK);
-                oled.fillRect(0, 26, 23, 8, BLACK);
-                oled.setCursor(1, 2);
-                oled.printf("LiPo: \n\r%d mV\n\r", rtv.lipo_mv);
-                oled.printf("Plug: \n\r%d mV\n\r", rtv.plug_mv);
+                oled.drawBitmap(0, 0, fr1_buddy, 
+                    FR1_BUDDY_WIDTH, FR1_BUDDY_HEIGHT, WHITE);
+                // oled.fillRect(0, 10, 23, 8, BLACK);
+                // oled.fillRect(0, 26, 23, 8, BLACK);
+                // oled.setCursor(1, 2);
+                // oled.printf("LiPo: \n\r%d mV\n\r", rtv.lipo_mv);
+                // oled.printf("Plug: \n\r%d mV\n\r", rtv.plug_mv);
             }
             if(prio == uio_update_all){
                 
@@ -218,7 +230,7 @@ void uio_job(void* p){
                 // low battery popup
             }
         }
-        uio_oled_rotate_show();
+        oled.display();
         rta_old = rta;
     }
 }
