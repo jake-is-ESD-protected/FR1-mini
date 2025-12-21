@@ -22,7 +22,7 @@ by registering the function `sd_job` as a job.
 #define SDCARD_PAGE_SIZE_BYTE       512
 #define SDCARD_SERVER_JOB_NAME      "sdcard"
 #define SDCARD_MAX_FILES_DEFAULT    5
-#define SDCARD_MAX_FREQ_BUS_DEFAULT 40000 // SDMMC_FREQ_DEFAULT
+#define SDCARD_MAX_FREQ_BUS_DEFAULT SDMMC_FREQ_52M // SDMMC_FREQ_DEFAULT
 
 #define PIN_SDSPI_CS     (gpio_num_t)13
 #define PIN_SDSPI_MOSI   (gpio_num_t)15
