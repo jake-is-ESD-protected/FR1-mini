@@ -6,19 +6,21 @@
 const char fsm_jccl_jobs[FSM_JOB_N][8] = {
     FSM_IDLE_JOB_NAME,
     FSM_RECORDING_JOB_NAME,
-    FSM_SETTINGS_JOB_NAME
+    FSM_BATTERY_JOB_NAME,
+    FSM_SETTINGS_JOB_NAME,
+    FSM_FILE_JOB_NAME
 };
 
 void fsm_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     char* args = jes_job_get_args();
     char* arg = strtok(args, " ");
+    fsm_runtime_args_t rta = fsm_get_runtime_args();
     if(!arg){
         SCOPE_LOG_PJ(pj, "Usage: fsm <state> [args]");
         return;
     }
     if(strcmp("state", arg) == 0){
-        fsm_runtime_args_t rta = fsm_get_runtime_args();
         SCOPE_LOG_PJ(pj, "Current state: %d", rta.cur_state);
         return;
     }
@@ -196,6 +198,20 @@ void record_job(void* p){
     }
 }
 
+void batt_job(void* p){
+    job_struct_t* pj = (job_struct_t*)p;
+    fsm_runtime_args_t rta;
+    pj->role = e_role_core;
+    while(1){
+        jes_wait_for_notification();
+        char* args = jes_job_get_args();
+        char* arg = strtok(args, " ");
+        rta = fsm_get_runtime_args();
+        e_syserr_t e;
+        FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_batt, &rta);
+    }
+}
+
 void sett_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     fsm_runtime_args_t rta;
@@ -207,5 +223,19 @@ void sett_job(void* p){
         rta = fsm_get_runtime_args();
         e_syserr_t e;
         FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_sett, &rta);
+    }
+}
+
+void file_job(void* p){
+    job_struct_t* pj = (job_struct_t*)p;
+    fsm_runtime_args_t rta;
+    pj->role = e_role_core;
+    while(1){
+        jes_wait_for_notification();
+        char* args = jes_job_get_args();
+        char* arg = strtok(args, " ");
+        rta = fsm_get_runtime_args();
+        e_syserr_t e;
+        FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_file, &rta);
     }
 }

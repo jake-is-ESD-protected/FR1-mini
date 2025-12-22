@@ -29,10 +29,20 @@ static inline e_syserr_t fsm_enter_idle(fsm_runtime_args_t* rta);
 /// @return FR1 error code.
 static inline e_syserr_t fsm_enter_record(fsm_runtime_args_t* rta);
 
+/// @brief Enter routine for battery viewer state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_enter_batt(fsm_runtime_args_t* rta);
+
 /// @brief Enter routine for settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @return FR1 error code.
 static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta);
+
+/// @brief Enter routine for file viewer state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_enter_file(fsm_runtime_args_t* rta);
 
 /// @brief Exit routine for idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -44,10 +54,20 @@ static inline e_syserr_t fsm_exit_idle(fsm_runtime_args_t* rta);
 /// @return FR1 error code.
 static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta);
 
+/// @brief Exit routine for battery state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_exit_batt(fsm_runtime_args_t* rta);
+
 /// @brief Exit routine for settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @return FR1 error code.
 static inline e_syserr_t fsm_exit_sett(fsm_runtime_args_t* rta);
+
+/// @brief Exit routine for file state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_exit_file(fsm_runtime_args_t* rta);
 
 /// @brief Routine to loop over while in idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -61,11 +81,23 @@ static inline void fsm_idle(fsm_runtime_args_t* rta);
 /// `state_func_t` function pointer in the **audio** loop.
 static inline void fsm_record(fsm_runtime_args_t* rta);
 
+/// @brief Routine to loop over while in battery state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @note This function is intended to be called as
+/// `state_func_t` function pointer in the **audio** loop.
+static inline void fsm_batt(fsm_runtime_args_t* rta);
+
 /// @brief Routine to loop over while in settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @note This function is intended to be called as
 /// `state_func_t` function pointer in the **audio** loop.
 static inline void fsm_sett(fsm_runtime_args_t* rta);
+
+/// @brief Routine to loop over while in file state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @note This function is intended to be called as
+/// `state_func_t` function pointer in the **audio** loop.
+static inline void fsm_file(fsm_runtime_args_t* rta);
 
 /// @brief Update the runtime args for the global buffer.
 /// @param rta Current runtime args.
@@ -97,11 +129,31 @@ static fsm_state_struct_t __record = {
     .lock = NULL
 };
 
+static fsm_state_struct_t __batt = {
+    .name = e_fsm_state_batt,
+    .enter = fsm_enter_batt,
+    .routine = fsm_batt,
+    .exit = fsm_exit_batt,
+    .rt_args = {},
+    .rt_vals = {},
+    .lock = NULL
+};
+
 static fsm_state_struct_t __sett = {
     .name = e_fsm_state_sett,
     .enter = fsm_enter_sett,
     .routine = fsm_sett,
     .exit = fsm_exit_sett,
+    .rt_args = {},
+    .rt_vals = {},
+    .lock = NULL
+};
+
+static fsm_state_struct_t __file = {
+    .name = e_fsm_state_file,
+    .enter = fsm_enter_file,
+    .routine = fsm_file,
+    .exit = fsm_exit_file,
     .rt_args = {},
     .rt_vals = {},
     .lock = NULL
@@ -119,7 +171,7 @@ static fsm_state_struct_t __trans = {
 
 static fsm_t fsm = {
     .cur_state = e_fsm_state_idle,
-    .states = {__idle, __record, __sett, __trans},
+    .states = {__idle, __record, __batt, __sett, __file, __trans},
     .audio_job_handle = NULL,
     // .cur_open_wav = WAV_DEFAULT_HEADER_STRUCT;
 };
@@ -182,7 +234,11 @@ e_syserr_t fsm_init(void){
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     je = jes_register_job(FSM_RECORDING_JOB_NAME, 2048*5, 1, record_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
+    je = jes_register_job(FSM_BATTERY_JOB_NAME, 2048, 1, batt_job, 1);
+    if(je != e_err_no_err) { return (e_syserr_t)je;}
     je = jes_register_job(FSM_SETTINGS_JOB_NAME, 2048, 1, sett_job, 1);
+    if(je != e_err_no_err) { return (e_syserr_t)je;}
+    je = jes_register_job(FSM_FILE_JOB_NAME, 2048, 1, file_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     return e_syserr_none;
 }
@@ -285,6 +341,17 @@ static inline e_syserr_t fsm_enter_record(fsm_runtime_args_t* rta){
     return e_syserr_none;
 }
 
+static inline e_syserr_t fsm_enter_batt(fsm_runtime_args_t* rta){
+    fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_batt];
+    rta->cur_state = e_fsm_state_batt;
+    pstate->rt_args = *rta;
+    jes_err_t je = __job_set_param(pstate, 
+                                   fsm.audio_job_handle);
+    if(je != e_err_no_err) return (e_syserr_t)je;
+    fsm.cur_state = e_fsm_state_batt;
+    return e_syserr_none;
+}
+
 static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta){
     fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_sett];
     rta->cur_state = e_fsm_state_sett;
@@ -293,6 +360,17 @@ static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta){
                                    fsm.audio_job_handle);
     if(je != e_err_no_err) return (e_syserr_t)je;
     fsm.cur_state = e_fsm_state_sett;
+    return e_syserr_none;
+}
+
+static inline e_syserr_t fsm_enter_file(fsm_runtime_args_t* rta){
+    fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_file];
+    rta->cur_state = e_fsm_state_file;
+    pstate->rt_args = *rta;
+    jes_err_t je = __job_set_param(pstate, 
+                                   fsm.audio_job_handle);
+    if(je != e_err_no_err) return (e_syserr_t)je;
+    fsm.cur_state = e_fsm_state_file;
     return e_syserr_none;
 }
 
@@ -329,7 +407,17 @@ static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
     return e_syserr_none;
 }
 
+static inline e_syserr_t fsm_exit_batt(fsm_runtime_args_t* rta){
+    fsm.cur_state = e_fsm_state_trans;
+    return e_syserr_none;
+}
+
 static inline e_syserr_t fsm_exit_sett(fsm_runtime_args_t* rta){
+    fsm.cur_state = e_fsm_state_trans;
+    return e_syserr_none;
+}
+
+static inline e_syserr_t fsm_exit_file(fsm_runtime_args_t* rta){
     fsm.cur_state = e_fsm_state_trans;
     return e_syserr_none;
 }
@@ -374,7 +462,15 @@ static inline void fsm_record(fsm_runtime_args_t* rta) {
     }
 }
 
+static inline void fsm_batt(fsm_runtime_args_t* rta){
+    fsm_static_base_cb(rta);
+}
+
 static inline void fsm_sett(fsm_runtime_args_t* rta){
+    fsm_static_base_cb(rta);
+}
+
+static inline void fsm_file(fsm_runtime_args_t* rta){
     fsm_static_base_cb(rta);
 }
 

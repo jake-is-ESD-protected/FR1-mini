@@ -12,11 +12,13 @@
 #define FSM_RECORDING_MIN_SPACE (1024 * 10) // 10 MB
 
 
-#define FSM_JOB_N               3
+#define FSM_JOB_N               5
 #define FSM_CTRL_JOB_NAME       "fsm" // not counted 
 #define FSM_IDLE_JOB_NAME       "idle"
 #define FSM_RECORDING_JOB_NAME  "record"
+#define FSM_BATTERY_JOB_NAME    "batt"
 #define FSM_SETTINGS_JOB_NAME   "sett"
+#define FSM_FILE_JOB_NAME       "file"
 
 #define FSM_UPDATE_SLOW_RATE_S  8 // every 8 seconds, the FSM updates "slow" values
 
@@ -40,7 +42,9 @@
 typedef enum fsm_state_t{
     e_fsm_state_idle,
     e_fsm_state_rec,
+    e_fsm_state_batt,
     e_fsm_state_sett,
+    e_fsm_state_file,
     e_fsm_state_trans,
     NUM_FSM_STATES
 }fsm_state_t;
