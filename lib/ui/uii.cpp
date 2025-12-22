@@ -2,9 +2,12 @@
 #include <jescore.h>
 #include "uii.h"
 #include "fsm.h"
+#include "fsm_jccl.h"
 
 TickType_t uii_small_button_ts = 0;
 TickType_t uii_big_button_ts = 0;
+
+static uint8_t uii_state_watcher = e_fsm_state_idle; 
 
 /// @brief 
 /// @param p 
@@ -71,7 +74,12 @@ static inline void IRAM_ATTR uii_exti_handler(void* p){
 
                 }
                 else{
-                    jes_launch_job_args(FSM_CTRL_JOB_NAME, FSM_SETTINGS_JOB_NAME);
+                    if(++uii_state_watcher == e_fsm_state_rec){
+                        // skip recording state
+                        uii_state_watcher++;
+                    }
+                    if(uii_state_watcher == FSM_JOB_N) uii_state_watcher = e_fsm_state_idle;
+                    jes_launch_job_args(FSM_CTRL_JOB_NAME, fsm_jccl_jobs[uii_state_watcher]);
                 }
                 uii_big_button_ts = now;
             }
