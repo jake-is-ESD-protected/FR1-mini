@@ -11,6 +11,60 @@
 
 Adafruit_SSD1306 oled(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, &Wire, OLED_RESET);
 
+void uio_wgt_update_cb_batt(void* p);
+void uio_wgt_update_cb_sett(void* p);
+void uio_wgt_update_cb_file(void* p);
+
+static uint8_t select_idx = 0;
+
+static uio_wgt_t uio_wdgt_batt = {
+    .x = BATTERY_POS_X,
+    .y = BATTERY_POS_Y,
+    .w = BATTERY_WIDTH,
+    .h = BATTERY_HEIGHT,
+    .bmp = (uint8_t*)battery,
+    "batt",
+    .selectable = 1,
+    .selected = 0,
+    .dynamic = 1,
+    .update_cb = uio_wgt_update_cb_batt,
+    .value = 0
+};
+
+static uio_wgt_t uio_wdgt_sett = {
+    .x = SETTINGS_POS_X,
+    .y = SETTINGS_POS_Y,
+    .w = SETTINGS_WIDTH,
+    .h = SETTINGS_HEIGHT,
+    .bmp = (uint8_t*)settings,
+    "sett",
+    .selectable = 1,
+    .selected = 0,
+    .dynamic = 0,
+    .update_cb = uio_wgt_update_cb_sett,
+    .value = 0
+};
+
+static uio_wgt_t uio_wdgt_file = {
+    .x = FILES_POS_X,
+    .y = FILES_POS_Y,
+    .w = FILES_WIDTH,
+    .h = FILES_HEIGHT,
+    .bmp = (uint8_t*)settings,
+    "file",
+    .selectable = 1,
+    .selected = 0,
+    .dynamic = 0,
+    .update_cb = uio_wgt_update_cb_file,
+    .value = 0
+};
+
+static uio_wgt_t widgets[] = {
+    uio_wdgt_batt,
+    uio_wdgt_sett,
+    uio_wdgt_file
+};
+
 e_syserr_t uio_init(void){
     jes_err_t je = jes_register_job(UIO_JOB_NAME, 2048, 1, uio_job, 1);
     if(je != e_err_no_err) return (e_syserr_t)je;
@@ -55,6 +109,15 @@ void uio_led_level(uint8_t lvl){
     analogWrite(UIO_LED_PIN, lvl);
 }
 
+void uio_oled_arrow_to(uint8_t x, uint8_t y){
+    oled.drawBitmap(x - ARROW_WIDTH,
+                    y,
+                    arrow,
+                    ARROW_WIDTH,
+                    ARROW_HEIGHT,
+                    WHITE);
+}
+
 void uio_oled_draw_widgets_all(void){
     oled.drawBitmap(BATTERY_POS_X, BATTERY_POS_Y, battery, 
         BATTERY_WIDTH, BATTERY_HEIGHT, WHITE);
@@ -86,9 +149,31 @@ void uio_oled_rec_screen(void){
     uio_oled_draw_widgets_all();
 }
 
+void uio_oled_batt_screen(void){
+    oled.clearDisplay();
+    uio_oled_arrow_to(BATTERY_POS_X, BATTERY_POS_Y);
+    oled.drawBitmap(0, 0, battery_big, 
+        BATTERY_BIG_WIDTH, BATTERY_BIG_HEIGHT, WHITE);
+    uio_oled_draw_widgets_all();
+}
+
 void uio_oled_sett_screen(void){
     oled.clearDisplay();
-    // draw bitmap here
+    uio_oled_arrow_to(SETTINGS_POS_X, SETTINGS_POS_Y);
+    oled.drawBitmap(0, 
+                    0, 
+                    fr1_buddy,
+                    FR1_BUDDY_WIDTH,
+                    FR1_BUDDY_HEIGHT,
+                    WHITE);
+    uio_oled_draw_widgets_all();
+}
+
+void uio_oled_file_screen(void){
+    oled.clearDisplay();
+    uio_oled_arrow_to(FILES_POS_X, FILES_POS_Y);
+    oled.drawBitmap(0, 0, sd, 
+        SD_WIDTH, SD_HEIGHT, WHITE);
     uio_oled_draw_widgets_all();
 }
 
@@ -143,6 +228,18 @@ uint8_t uio_oled_db_to_deg(int16_t db){
     return (uint8_t)degrees;
 }
 
+void uio_wgt_update_cb_batt(void* p){
+
+}
+
+void uio_wgt_update_cb_sett(void* p){
+
+}
+
+void uio_wgt_update_cb_file(void* p){
+
+}
+
 void uio_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
@@ -167,8 +264,16 @@ void uio_job(void* p){
                 uio_oled_rec_screen();
                 break;
             
+            case e_fsm_state_batt:
+                uio_oled_batt_screen();
+                break;
+            
             case e_fsm_state_sett:
                 uio_oled_sett_screen();
+                break;
+            
+            case e_fsm_state_file:
+                uio_oled_file_screen();
                 break;
             default:
                 break;
@@ -207,17 +312,44 @@ void uio_job(void* p){
             }
         }
 
+        // batt routine
+        if(rta.cur_state == e_fsm_state_batt){
+
+            if(prio == uio_update_mid){
+                oled.fillRect(0, BATTERY_BIG_HEIGHT + 5,
+                    SSD1306_LCDWIDTH, 20, BLACK);
+                oled.setCursor(0, BATTERY_BIG_HEIGHT + 5);
+                oled.printf("V: %d mV\n\r", rtv.lipo_mv);
+                const uint32_t max_v = 4100;
+                if(rtv.lipo_mv > max_v) rtv.lipo_mv = max_v;
+                uint32_t p = map(rtv.lipo_mv, 3700, max_v, 0, 100);
+                oled.printf("Chrg: %d%", p);
+            }
+            if(prio == uio_update_all){
+                
+            }
+        }
+
         // sett routine
         if(rta.cur_state == e_fsm_state_sett){
 
             if(prio == uio_update_mid){
-                oled.drawBitmap(0, 0, fr1_buddy, 
-                    FR1_BUDDY_WIDTH, FR1_BUDDY_HEIGHT, WHITE);
-                // oled.fillRect(0, 10, 23, 8, BLACK);
-                // oled.fillRect(0, 26, 23, 8, BLACK);
-                // oled.setCursor(1, 2);
-                // oled.printf("LiPo: \n\r%d mV\n\r", rtv.lipo_mv);
-                // oled.printf("Plug: \n\r%d mV\n\r", rtv.plug_mv);
+                oled.fillRect(0, FR1_BUDDY_HEIGHT + 5,
+                    SSD1306_LCDWIDTH, 20, BLACK);
+                oled.setCursor(0, BATTERY_BIG_HEIGHT + 5);
+                oled.printf("FW: v%d\n\r", FR1_FW_VERSION);
+                oled.printf("SN#: %d\n\r", FR1_SER_NUM);
+            }
+            if(prio == uio_update_all){
+                
+            }
+        }
+
+        // file routine
+        if(rta.cur_state == e_fsm_state_file){
+
+            if(prio == uio_update_mid){
+            
             }
             if(prio == uio_update_all){
                 

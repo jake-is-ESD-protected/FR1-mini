@@ -25,7 +25,25 @@
 
 #define UIO_LED_PIN 5
 
+#define UI_WGT_MAX_NAME_LEN 5
+
 #define UIO_JOB_NAME "uio"
+
+typedef void (*uio_wgt_update_cb_t) (void* param);
+
+typedef struct uio_wgt_t{
+    uint8_t x;
+    uint8_t y;
+    uint16_t w;
+    uint16_t h;
+    uint8_t* bmp;
+    const char name[UI_WGT_MAX_NAME_LEN];
+    uint8_t selectable;
+    uint8_t selected;
+    uint8_t dynamic;
+    uio_wgt_update_cb_t update_cb;
+    float value; 
+}ui_gfx_widget_t;
 
 e_syserr_t uio_init(void);
 
