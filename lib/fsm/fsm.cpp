@@ -203,9 +203,9 @@ e_syserr_t fsm_init(void){
         .samples_to_process = 0,
         .samples_tot = 0,
         .wav_file = &fsm.cur_open_wav,
-        .sr = 0,
-        .bps = 0,
-        .n_ch = 0,
+        .sr = AUDIO_SR_DEFAULT,
+        .bps = 32,
+        .n_ch = 1,
         .sd_mounted = 0,
         .var_args = NULL,
     };

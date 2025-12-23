@@ -178,7 +178,7 @@ void record_job(void* p){
             rta.wav_file = &wav;
             rta.sr = AUDIO_SR_DEFAULT;
             rta.bps = 32;
-            rta.n_ch = 2;
+            rta.n_ch = 1;
 
             FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_rec, &rta);
         }
