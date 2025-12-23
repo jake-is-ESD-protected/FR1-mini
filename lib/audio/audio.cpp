@@ -86,21 +86,11 @@ void audio_sampler(void* p){
                 SCOPE_LOG_PJ(pj, "Audio was restarted!");
                 continue;
             }
-            if(evt.type != I2S_EVENT_RX_DONE){
-                SCOPE_LOG_PJ(pj, "Audio event abnormal: %d", evt.type);
-            }
-            state->routine(&state->rt_args);
-            // if (evt.type != I2S_EVENT_TX_DONE && evt.type != I2S_EVENT_RX_DONE){
-            //     continue;
+            // This triggers as well when a state does not consume audio
+            // if(evt.type != I2S_EVENT_RX_DONE){
+            //     SCOPE_LOG_PJ(pj, "Audio event abnormal: %d", evt.type);
             // }
-            // if(evt.type == I2S_EVENT_TX_DONE) tx_occ = true;
-            // if(evt.type == I2S_EVENT_RX_DONE) rx_occ = true;
-
-            // if(tx_occ && rx_occ){
-            //     state->routine(&state->rt_args);
-            //     tx_occ = false;
-            //     rx_occ = false;
-            // } 
+            state->routine(&state->rt_args);
         }
     }
 }
