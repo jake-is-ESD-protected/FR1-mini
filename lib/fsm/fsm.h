@@ -77,6 +77,8 @@ typedef struct fsm_runtime_values_t{
     int64_t t_system;
     uint32_t lipo_mv;
     uint32_t plug_mv;
+    uint32_t sd_free_kb;
+    uint32_t sd_tot_kb;
 }fsm_runtime_values_t;
 
 /// @brief State execution routine type.

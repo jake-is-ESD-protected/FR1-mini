@@ -238,7 +238,7 @@ e_syserr_t fsm_init(void){
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     je = jes_register_job(FSM_SETTINGS_JOB_NAME, 2048, 1, sett_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
-    je = jes_register_job(FSM_FILE_JOB_NAME, 2048, 1, file_job, 1);
+    je = jes_register_job(FSM_FILE_JOB_NAME, 2048*2, 1, file_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     return e_syserr_none;
 }
@@ -366,6 +366,14 @@ static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta){
 static inline e_syserr_t fsm_enter_file(fsm_runtime_args_t* rta){
     fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_file];
     rta->cur_state = e_fsm_state_file;
+    uint32_t totkb = 0;
+    uint32_t freekb = 0;
+    e_syserr_t e = sd_get_free_kbytes(&freekb, &totkb);
+    if(e != e_syserr_none) return e;
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
+    rtv.sd_free_kb = freekb;
+    rtv.sd_tot_kb = totkb;
+    fsm_update_runtime_values(&rtv);
     pstate->rt_args = *rta;
     jes_err_t je = __job_set_param(pstate, 
                                    fsm.audio_job_handle);
@@ -396,7 +404,8 @@ static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
         return e; 
     }
     // memset(rta->wav_file, 0, sizeof(wav_file_t)); /// TODO:
-    // e = sd_unmnt();
+    e = sd_unmnt();
+    rta->sd_mounted = 0;
     // if(e != e_syserr_none) {
     //     #if FSM_INTERNAL_VERBOSE == 1
     //     SCOPE_LOG("err: %d, unable to unmount SD card", e);
@@ -421,6 +430,9 @@ static inline e_syserr_t fsm_exit_sett(fsm_runtime_args_t* rta){
 
 static inline e_syserr_t fsm_exit_file(fsm_runtime_args_t* rta){
     fsm.cur_state = e_fsm_state_trans;
+    e_syserr_t e = sd_unmnt();
+    if(e != e_syserr_none) return e;
+    rta->sd_mounted = 0;
     return e_syserr_none;
 }
 
