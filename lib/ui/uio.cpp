@@ -174,6 +174,9 @@ void uio_oled_file_screen(void){
     uio_oled_arrow_to(FILES_POS_X, FILES_POS_Y);
     oled.drawBitmap(0, 0, sd, 
         SD_WIDTH, SD_HEIGHT, WHITE);
+    oled.setCursor(0, SD_HEIGHT + 5);
+    fsm_runtime_values_t rta = fsm_get_runtime_values();
+    oled.printf("%d/%d\n\rMB free", rta.sd_free_kb/1000, rta.sd_tot_kb/1000);
     uio_oled_draw_widgets_all();
 }
 
@@ -251,6 +254,31 @@ void uio_job(void* p){
         fsm_runtime_args_t rta = fsm_get_runtime_args();
         fsm_runtime_values_t rtv = fsm_get_runtime_values();
 
+        // popup
+        if(prio == 999){
+            oled.clearDisplay();
+            oled.setCursor(18, 2);
+            oled.printf("No SD");
+            oled.drawBitmap(20, 12, sd, SD_WIDTH, SD_HEIGHT, WHITE);
+            oled.drawLine(20, 12, 44, 36, WHITE);
+            oled.display();
+            rta_old.cur_state = e_fsm_state_trans;
+            jes_delay_job_ms(1500);
+            continue;
+        }
+
+        // popup
+        if(prio == 1000){
+            oled.clearDisplay();
+            oled.setCursor(16, 0);
+            oled.printf("Still\n\rrecording!");
+            oled.drawBitmap(24, 20, mic, MIC_WIDTH, MIC_HEIGHT, WHITE);
+            oled.display();
+            rta_old.cur_state = e_fsm_state_trans;
+            jes_delay_job_ms(1500);
+            continue;
+        }
+
         // set up page
         if(rta.cur_state != rta_old.cur_state){
             // on change event
@@ -258,22 +286,29 @@ void uio_job(void* p){
             {
             case e_fsm_state_idle:
                 uio_oled_idle_screen();
+                uio_led_off();
                 break;
             
             case e_fsm_state_rec:
                 uio_oled_rec_screen();
+                oled.setCursor(0, 40);
+                oled.print(&rta.wav_file->filename[sizeof(SDCARD_BASE_PATH)+2]);
+                uio_led_on();
                 break;
             
             case e_fsm_state_batt:
                 uio_oled_batt_screen();
+                uio_led_off();
                 break;
             
             case e_fsm_state_sett:
                 uio_oled_sett_screen();
+                uio_led_off();
                 break;
             
             case e_fsm_state_file:
                 uio_oled_file_screen();
+                uio_led_off();
                 break;
             default:
                 break;
@@ -294,18 +329,26 @@ void uio_job(void* p){
         // rec routine
         if(rta.cur_state == e_fsm_state_rec){
             oled.setTextSize(1);
-            oled.fillRect(0, 10, 53, 8, BLACK);
+            oled.fillRect(0, 0, 53, 8, BLACK);
             uint32_t total_seconds = rtv.t_transaction / 1000;
             uint8_t hours = total_seconds / 3600;
             uint8_t minutes = (total_seconds % 3600) / 60;
             uint8_t seconds = total_seconds % 60;
             uint8_t ms = (rtv.t_transaction % 1000) / 10;
-            // oled.fillRect(0, 26, 23, 8, BLACK);
-            oled.setCursor(0, 10);
+            oled.setCursor(0, 0);
             oled.printf("%02d:%02d:%02d", minutes, seconds, ms);
-            // oled.printf("sys: \n\r%d s\n\r", rtv.t_system / 1000);
+            static uint8_t r = 0;
+            const uint8_t r_max = 11;
+            if(r == 0){
+                oled.drawCircle(2, 24, r_max, BLACK);    
+            }
+            oled.drawCircle(2, 24, r++, BLACK);
+            oled.drawCircle(2, 24, r, WHITE);
+            if(r == r_max){
+                r = 0;
+            }
             if(prio == uio_update_mid){
-
+                
             }
             if(prio == uio_update_all){
                 
