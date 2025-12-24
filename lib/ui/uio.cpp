@@ -191,7 +191,7 @@ void uio_oled_update_db(int16_t val){
 }
 
 void uio_oled_update_db_text(int16_t val){
-    oled.fillRect(0, 0, 40, 8, BLACK);
+    oled.fillRect(0, 0, 54, 8, BLACK);
     oled.setTextSize(1);
     oled.setTextColor(WHITE);
     oled.setCursor(0,0);
