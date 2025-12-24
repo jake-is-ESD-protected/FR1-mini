@@ -7,6 +7,17 @@
 #include <driver/i2s.h>
 #include "audio.h"
 #include "wav.h"
+#include "adc_base.h"
+
+/// @brief Callback for fetching basic system data. 
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+static inline void fsm_static_base_cb(fsm_runtime_args_t* rta);
+
+/// @brief Callback for audio processing.
+/// @param buf Audio buffer.
+/// @param len Length of buffer.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rta);
 
 /// @brief Enter routine for idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -18,10 +29,20 @@ static inline e_syserr_t fsm_enter_idle(fsm_runtime_args_t* rta);
 /// @return FR1 error code.
 static inline e_syserr_t fsm_enter_record(fsm_runtime_args_t* rta);
 
+/// @brief Enter routine for battery viewer state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_enter_batt(fsm_runtime_args_t* rta);
+
 /// @brief Enter routine for settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @return FR1 error code.
 static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta);
+
+/// @brief Enter routine for file viewer state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_enter_file(fsm_runtime_args_t* rta);
 
 /// @brief Exit routine for idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -33,10 +54,20 @@ static inline e_syserr_t fsm_exit_idle(fsm_runtime_args_t* rta);
 /// @return FR1 error code.
 static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta);
 
+/// @brief Exit routine for battery state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_exit_batt(fsm_runtime_args_t* rta);
+
 /// @brief Exit routine for settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @return FR1 error code.
 static inline e_syserr_t fsm_exit_sett(fsm_runtime_args_t* rta);
+
+/// @brief Exit routine for file state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @return FR1 error code.
+static inline e_syserr_t fsm_exit_file(fsm_runtime_args_t* rta);
 
 /// @brief Routine to loop over while in idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -50,11 +81,23 @@ static inline void fsm_idle(fsm_runtime_args_t* rta);
 /// `state_func_t` function pointer in the **audio** loop.
 static inline void fsm_record(fsm_runtime_args_t* rta);
 
+/// @brief Routine to loop over while in battery state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @note This function is intended to be called as
+/// `state_func_t` function pointer in the **audio** loop.
+static inline void fsm_batt(fsm_runtime_args_t* rta);
+
 /// @brief Routine to loop over while in settings state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
 /// @note This function is intended to be called as
 /// `state_func_t` function pointer in the **audio** loop.
 static inline void fsm_sett(fsm_runtime_args_t* rta);
+
+/// @brief Routine to loop over while in file state.
+/// @param rta Pointer to runtime arguments. Passed onto routine.
+/// @note This function is intended to be called as
+/// `state_func_t` function pointer in the **audio** loop.
+static inline void fsm_file(fsm_runtime_args_t* rta);
 
 /// @brief Update the runtime args for the global buffer.
 /// @param rta Current runtime args.
@@ -86,11 +129,31 @@ static fsm_state_struct_t __record = {
     .lock = NULL
 };
 
+static fsm_state_struct_t __batt = {
+    .name = e_fsm_state_batt,
+    .enter = fsm_enter_batt,
+    .routine = fsm_batt,
+    .exit = fsm_exit_batt,
+    .rt_args = {},
+    .rt_vals = {},
+    .lock = NULL
+};
+
 static fsm_state_struct_t __sett = {
     .name = e_fsm_state_sett,
     .enter = fsm_enter_sett,
     .routine = fsm_sett,
     .exit = fsm_exit_sett,
+    .rt_args = {},
+    .rt_vals = {},
+    .lock = NULL
+};
+
+static fsm_state_struct_t __file = {
+    .name = e_fsm_state_file,
+    .enter = fsm_enter_file,
+    .routine = fsm_file,
+    .exit = fsm_exit_file,
     .rt_args = {},
     .rt_vals = {},
     .lock = NULL
@@ -108,7 +171,7 @@ static fsm_state_struct_t __trans = {
 
 static fsm_t fsm = {
     .cur_state = e_fsm_state_idle,
-    .states = {__idle, __record, __sett, __trans},
+    .states = {__idle, __record, __batt, __sett, __file, __trans},
     .audio_job_handle = NULL,
     // .cur_open_wav = WAV_DEFAULT_HEADER_STRUCT;
 };
@@ -140,15 +203,29 @@ e_syserr_t fsm_init(void){
         .samples_to_process = 0,
         .samples_tot = 0,
         .wav_file = &fsm.cur_open_wav,
-        .sr = 0,
-        .bps = 0,
-        .n_ch = 0,
+        .sr = AUDIO_SR_DEFAULT,
+        .bps = 32,
+        .n_ch = 1,
+        .sd_mounted = 0,
         .var_args = NULL,
+    };
+    fsm_runtime_values_t rtv = {
+        .raw_data = rta.data_buf,
+        .len = rta.data_len,
+        .msqr = {.l = 0., .r = 0.},
+        .msqr_avg = {.l = 0., .r = 0.},
+        .dbfs = {.l = 0., .r = 0.},
+        .dbfs_avg = {.l = 0., .r = 0.},
+        .t_transaction = 0,
+        .t_system = 0,
+        .lipo_mv = 0,
+        .plug_mv = 0,
     };
     lock_interface = xSemaphoreCreateMutex();
     e_syserr_t e = fsm_enter_idle(&rta);
     if(e != e_syserr_none) { return e; }
     fsm_update_runtime_args(&rta);
+    fsm_update_runtime_values(&rtv);
 
     jes_err_t je; 
     je = jes_register_job(FSM_CTRL_JOB_NAME, 2048, 1, fsm_job, 0);
@@ -157,7 +234,11 @@ e_syserr_t fsm_init(void){
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     je = jes_register_job(FSM_RECORDING_JOB_NAME, 2048*5, 1, record_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
+    je = jes_register_job(FSM_BATTERY_JOB_NAME, 2048, 1, batt_job, 1);
+    if(je != e_err_no_err) { return (e_syserr_t)je;}
     je = jes_register_job(FSM_SETTINGS_JOB_NAME, 2048, 1, sett_job, 1);
+    if(je != e_err_no_err) { return (e_syserr_t)je;}
+    je = jes_register_job(FSM_FILE_JOB_NAME, 2048*2, 1, file_job, 1);
     if(je != e_err_no_err) { return (e_syserr_t)je;}
     return e_syserr_none;
 }
@@ -200,17 +281,32 @@ static inline void fsm_update_samples_to_process(uint32_t samples){
     }
 }
 
-void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
-    fsm_runtime_values_t rtv;
+static inline void fsm_static_base_cb(fsm_runtime_args_t* rt_args){
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
+    // hardcoded
+    const uint16_t softclock_max = AUDIO_SR_DEFAULT / (AUDIO_FRAME_LEN/FSM_UPDATE_SLOW_RATE_S); 
+    static uint16_t softclock = softclock_max - 1;
+    static uint16_t adc_lipo_last_mv;
+    static uint16_t adc_plug_last_mv;
+    if(++softclock == softclock_max){
+        softclock = 0;
+        adc_lipo_last_mv = rtv.lipo_mv = adc_base_get_mv(ADC_LIPO_LEVEL_PIN);
+        adc_plug_last_mv = rtv.plug_mv = adc_base_get_mv(ADC_PLUG_DETECT_PIN);
+    }
+    uint32_t delta = rt_args->samples_tot - rt_args->samples_to_process;
+    rtv.t_transaction = (uint32_t)(((float)delta/(float)rt_args->sr) * 1000);
+    rtv.t_system = esp_timer_get_time() / 1000;
+    fsm_update_runtime_values(&rtv);
+}
+
+static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
     rtv.raw_data = buf;
     rtv.len = AUDIO_FRAME_LEN;
     rtv.msqr = dsp_fr1_samples_to_msqr_32b(rtv.raw_data, rtv.len);
     rtv.msqr_avg = dsp_fr1_msqr_rolling_avg(rtv.msqr);
     rtv.dbfs = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr);
     rtv.dbfs_avg = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr_avg);
-    uint32_t delta = rt_args->samples_tot - rt_args->samples_to_process;
-    rtv.t_transaction = (uint32_t)(((float)delta/(float)rt_args->sr) * 1000);
-    rtv.t_system = esp_timer_get_time() / 1000;
     fsm_update_runtime_values(&rtv);
 }
 
@@ -245,6 +341,17 @@ static inline e_syserr_t fsm_enter_record(fsm_runtime_args_t* rta){
     return e_syserr_none;
 }
 
+static inline e_syserr_t fsm_enter_batt(fsm_runtime_args_t* rta){
+    fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_batt];
+    rta->cur_state = e_fsm_state_batt;
+    pstate->rt_args = *rta;
+    jes_err_t je = __job_set_param(pstate, 
+                                   fsm.audio_job_handle);
+    if(je != e_err_no_err) return (e_syserr_t)je;
+    fsm.cur_state = e_fsm_state_batt;
+    return e_syserr_none;
+}
+
 static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta){
     fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_sett];
     rta->cur_state = e_fsm_state_sett;
@@ -253,6 +360,25 @@ static inline e_syserr_t fsm_enter_sett(fsm_runtime_args_t* rta){
                                    fsm.audio_job_handle);
     if(je != e_err_no_err) return (e_syserr_t)je;
     fsm.cur_state = e_fsm_state_sett;
+    return e_syserr_none;
+}
+
+static inline e_syserr_t fsm_enter_file(fsm_runtime_args_t* rta){
+    fsm_state_struct_t* pstate = &fsm.states[e_fsm_state_file];
+    rta->cur_state = e_fsm_state_file;
+    uint32_t totkb = 0;
+    uint32_t freekb = 0;
+    e_syserr_t e = sd_get_free_kbytes(&freekb, &totkb);
+    if(e != e_syserr_none) return e;
+    fsm_runtime_values_t rtv = fsm_get_runtime_values();
+    rtv.sd_free_kb = freekb;
+    rtv.sd_tot_kb = totkb;
+    fsm_update_runtime_values(&rtv);
+    pstate->rt_args = *rta;
+    jes_err_t je = __job_set_param(pstate, 
+                                   fsm.audio_job_handle);
+    if(je != e_err_no_err) return (e_syserr_t)je;
+    fsm.cur_state = e_fsm_state_file;
     return e_syserr_none;
 }
 
@@ -268,6 +394,8 @@ static inline e_syserr_t fsm_exit_idle(fsm_runtime_args_t* rta){
 }
 
 static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
+    audio_suspend_short();
+    jes_delay_job_ms(100); // let audio finish the last block
     e_syserr_t e = wav_close_for_write(rta->wav_file);
     if(e != e_syserr_none) {
         #if FSM_INTERNAL_VERBOSE == 1
@@ -276,14 +404,35 @@ static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
         return e; 
     }
     // memset(rta->wav_file, 0, sizeof(wav_file_t)); /// TODO:
+    e = sd_unmnt();
+    rta->sd_mounted = 0;
+    // if(e != e_syserr_none) {
+    //     #if FSM_INTERNAL_VERBOSE == 1
+    //     SCOPE_LOG("err: %d, unable to unmount SD card", e);
+    //     #endif
+    //     return e; 
+    // }
     rta->samples_to_process = 0;
     rta->samples_tot = 0;
     fsm.cur_state = e_fsm_state_trans;
     return e_syserr_none;
 }
 
+static inline e_syserr_t fsm_exit_batt(fsm_runtime_args_t* rta){
+    fsm.cur_state = e_fsm_state_trans;
+    return e_syserr_none;
+}
+
 static inline e_syserr_t fsm_exit_sett(fsm_runtime_args_t* rta){
     fsm.cur_state = e_fsm_state_trans;
+    return e_syserr_none;
+}
+
+static inline e_syserr_t fsm_exit_file(fsm_runtime_args_t* rta){
+    fsm.cur_state = e_fsm_state_trans;
+    e_syserr_t e = sd_unmnt();
+    if(e != e_syserr_none) return e;
+    rta->sd_mounted = 0;
     return e_syserr_none;
 }
 
@@ -296,15 +445,25 @@ static inline void fsm_idle(fsm_runtime_args_t* rta){
     static uint8_t frame_pos = 0;
     audio_read(&audio_buf[rta->data_len*(frame_pos)], rta->data_len);
     fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
+    fsm_static_base_cb(rta);
     frame_pos = !frame_pos;
 }
 
 static inline void fsm_record(fsm_runtime_args_t* rta) {
+    e_syserr_t e;
     static uint8_t frame_pos = 0;
     static uint8_t test = 0;
     audio_read(&audio_buf[rta->data_len * frame_pos], rta->data_len);
     fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
-    wav_write_samples(rta->wav_file, &audio_buf[rta->data_len * (!frame_pos)], rta->data_len);
+    fsm_static_base_cb(rta);
+    e = wav_write_samples(rta->wav_file, &audio_buf[rta->data_len * (!frame_pos)], rta->data_len);
+    if(e != e_syserr_none && e != e_syserr_oom){
+        rta->samples_to_process = 0;
+        // this is an assumption:
+        uart_unif_writef("record routine died: %d\n\r", e);
+        jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
+        // sd_unmnt();
+    }
     if (rta->samples_to_process > rta->data_len) {
         rta->samples_to_process -= rta->data_len;
     } else {
@@ -317,8 +476,16 @@ static inline void fsm_record(fsm_runtime_args_t* rta) {
     }
 }
 
+static inline void fsm_batt(fsm_runtime_args_t* rta){
+    fsm_static_base_cb(rta);
+}
+
 static inline void fsm_sett(fsm_runtime_args_t* rta){
-    
+    fsm_static_base_cb(rta);
+}
+
+static inline void fsm_file(fsm_runtime_args_t* rta){
+    fsm_static_base_cb(rta);
 }
 
 void fsm_routine_state(fsm_state_t s, fsm_runtime_args_t* rta){

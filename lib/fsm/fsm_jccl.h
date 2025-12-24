@@ -25,8 +25,16 @@ void idle_job(void* p);
 /// @param p Pointer to job parameters (set by jescore).
 void record_job(void* p);
 
+/// @brief Battery job. Handles the battery state transition.
+/// @param p Pointer to job parameters (set by jescore).
+void batt_job(void* p);
+
 /// @brief Settings job. Handles the settings state transition.
 /// @param p Pointer to job parameters (set by jescore).
 void sett_job(void* p);
+
+/// @brief File viewer job. Handles the file state transition.
+/// @param p Pointer to job parameters (set by jescore).
+void file_job(void* p);
 
 #endif // _FSM_JCCL_H_

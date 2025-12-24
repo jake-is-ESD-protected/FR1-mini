@@ -17,7 +17,7 @@
 #define AUDIO_SR_DEFAULT        AUDIO_SR_48000
 #define AUDIO_SR_VALID(sr)      ((sr) == 44100 || (sr) == 48000 || (sr) == 96000)
 #define AUDIO_I2S_STARTUP       I2S_EVENT_MAX
-#define AUDIO_I2S_RESTART_MS    50     
+#define AUDIO_I2S_RESTART_MS    200     
 
 #define AUDIO_PIN_MEMS_I2S_BCLK 23
 #define AUDIO_PIN_MEMS_I2S_WS   4

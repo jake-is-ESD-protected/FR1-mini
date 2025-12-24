@@ -29,7 +29,7 @@ e_syserr_t audio_init(uint32_t sampleRate, uint8_t bclk, uint8_t ws, uint8_t dat
         .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
         .sample_rate = sampleRate,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, //I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count = 8,
@@ -51,7 +51,7 @@ e_syserr_t audio_init(uint32_t sampleRate, uint8_t bclk, uint8_t ws, uint8_t dat
         return e_syserr_driver_fail;
     }
     
-    // // Delay by falling edge
+    // Delay by falling edge
     // REG_SET_BIT(I2S_RX_TIMING_REG(AUDIO_I2S_PORT), BIT(1));
     // // Force Philips mode
     // REG_SET_BIT(I2S_RX_CONF1_REG(AUDIO_I2S_PORT), I2S_RX_MSB_SHIFT);
@@ -86,18 +86,11 @@ void audio_sampler(void* p){
                 SCOPE_LOG_PJ(pj, "Audio was restarted!");
                 continue;
             }
-            state->routine(&state->rt_args);
-            // if (evt.type != I2S_EVENT_TX_DONE && evt.type != I2S_EVENT_RX_DONE){
-            //     continue;
+            // This triggers as well when a state does not consume audio
+            // if(evt.type != I2S_EVENT_RX_DONE){
+            //     SCOPE_LOG_PJ(pj, "Audio event abnormal: %d", evt.type);
             // }
-            // if(evt.type == I2S_EVENT_TX_DONE) tx_occ = true;
-            // if(evt.type == I2S_EVENT_RX_DONE) rx_occ = true;
-
-            // if(tx_occ && rx_occ){
-            //     state->routine(&state->rt_args);
-            //     tx_occ = false;
-            //     rx_occ = false;
-            // } 
+            state->routine(&state->rt_args);
         }
     }
 }
@@ -105,6 +98,9 @@ void audio_sampler(void* p){
 void audio_read(stereo_sample_t *data, uint32_t len){
     uint32_t bytesRead = 0;
     esp_err_t e = i2s_read(AUDIO_I2S_PORT, (uint8_t *)data, len * sizeof(stereo_sample_t), &bytesRead, portMAX_DELAY);
+    if(e != ESP_OK){
+        uart_unif_writef("I2S read fail: %d\n\r", e);
+    }
 }
 
 void audio_suspend_short(void){

@@ -20,7 +20,7 @@ static spi_bus_config_t bus_cfg;
 static SemaphoreHandle_t stream_lock;
 
 e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz){
-    if(max_freq_khz > SDMMC_FREQ_HIGHSPEED) return e_syserr_param;
+    if(max_freq_khz > SDMMC_FREQ_52M) return e_syserr_param;
     if(max_freq_khz != 0){
         host.max_freq_khz = max_freq_khz;
     }

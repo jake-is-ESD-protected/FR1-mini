@@ -55,6 +55,7 @@ void fr1_system_init(void){
         }
     }
     uio_oled_title_screen();
+    uio_led_toggle();
     SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Starting audio engine...");
     jes_delay_job_ms(500);
     je = jes_launch_job(AUDIO_SERVER_JOB_NAME);
@@ -64,8 +65,10 @@ void fr1_system_init(void){
         SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Launching state handler <%s>", fsm_jccl_jobs[i]);
         je = jes_launch_job(fsm_jccl_jobs[i]);
         if(je != e_err_no_err){ SCOPE_LOG_INIT("<%s> launch fail.", fsm_jccl_jobs[i]); return; }
+        uio_led_toggle();
         jes_delay_job_ms(400);
     }
+    uio_led_off();
     uio_oled_idle_screen();
 
     SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Dispatching UI update timer...");

@@ -6,19 +6,21 @@
 const char fsm_jccl_jobs[FSM_JOB_N][8] = {
     FSM_IDLE_JOB_NAME,
     FSM_RECORDING_JOB_NAME,
-    FSM_SETTINGS_JOB_NAME
+    FSM_BATTERY_JOB_NAME,
+    FSM_SETTINGS_JOB_NAME,
+    FSM_FILE_JOB_NAME
 };
 
 void fsm_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     char* args = jes_job_get_args();
     char* arg = strtok(args, " ");
+    fsm_runtime_args_t rta = fsm_get_runtime_args();
     if(!arg){
         SCOPE_LOG_PJ(pj, "Usage: fsm <state> [args]");
         return;
     }
     if(strcmp("state", arg) == 0){
-        fsm_runtime_args_t rta = fsm_get_runtime_args();
         SCOPE_LOG_PJ(pj, "Current state: %d", rta.cur_state);
         return;
     }
@@ -27,6 +29,11 @@ void fsm_job(void* p){
             job_struct_t* pj = __job_get_job_by_name(arg);
             if(!pj){
                 break;
+            }
+            if(i != e_fsm_state_rec && rta.cur_state == e_fsm_state_rec){
+                SCOPE_LOG_PJ(pj, "Device is still recording!");
+                jes_notify_job("uio", (uint32_t*)1000);
+                return;
             }
             char* transfer_args = arg + strlen(arg) + 1;
             if(transfer_args){
@@ -98,9 +105,11 @@ void record_job(void* p){
             e = sd_mnt();
             if(e != e_syserr_none){
                 SCOPE_LOG_PJ(pj, "Cannot mount SD.");
+                jes_notify_job("uio", (uint32_t*)999);
                 jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
                 continue;
             }
+            rta.sd_mounted = 1;
             SCOPE_LOG_PJ(pj, "Mounted SD.");
         }
         
@@ -176,7 +185,7 @@ void record_job(void* p){
             rta.wav_file = &wav;
             rta.sr = AUDIO_SR_DEFAULT;
             rta.bps = 32;
-            rta.n_ch = 2;
+            rta.n_ch = 1;
 
             FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_rec, &rta);
         }
@@ -196,6 +205,20 @@ void record_job(void* p){
     }
 }
 
+void batt_job(void* p){
+    job_struct_t* pj = (job_struct_t*)p;
+    fsm_runtime_args_t rta;
+    pj->role = e_role_core;
+    while(1){
+        jes_wait_for_notification();
+        char* args = jes_job_get_args();
+        char* arg = strtok(args, " ");
+        rta = fsm_get_runtime_args();
+        e_syserr_t e;
+        FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_batt, &rta);
+    }
+}
+
 void sett_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     fsm_runtime_args_t rta;
@@ -207,5 +230,30 @@ void sett_job(void* p){
         rta = fsm_get_runtime_args();
         e_syserr_t e;
         FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_sett, &rta);
+    }
+}
+
+void file_job(void* p){
+    job_struct_t* pj = (job_struct_t*)p;
+    fsm_runtime_args_t rta;
+    fsm_runtime_values_t rtv;
+    pj->role = e_role_core;
+    while(1){
+        jes_wait_for_notification();
+        char* args = jes_job_get_args();
+        char* arg = strtok(args, " ");
+        rta = fsm_get_runtime_args();
+        rtv = fsm_get_runtime_values();
+        e_syserr_t e;
+        uart_unif_write("Trying to mount SD!\n\r");
+        e = sd_mnt();
+        uart_unif_write("Did the OP!\n\r");
+        if(e != e_syserr_none){
+            SCOPE_LOG_PJ(pj, "Cannot mount SD.");
+            jes_notify_job("uio", (uint32_t*)999);
+            jes_throw_error((jes_err_t)e_syserr_sdcard_unmnted);
+            continue;
+        }
+        FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_file, &rta);
     }
 }
