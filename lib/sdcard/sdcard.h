@@ -34,6 +34,7 @@ by registering the function `sd_job` as a job.
 #define SDCARD_PATH_MAX_CHAR    64
 
 #define SDCARD_DEFAULT_FNAME_WAV    "fr1_rec_0000.wav"
+#define SDCARD_METADATA_FNAME       ".fr2_metadata.txt"
 
 /// @deprecated
 /// @enum SD card control commands.

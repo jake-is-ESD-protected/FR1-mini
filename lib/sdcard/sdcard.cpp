@@ -285,6 +285,35 @@ uint8_t sd_file_exists(const char *fname){
     return 1;
 }
 
+#if FR1_FW_VER_MOD == 'm'
+e_syserr_t sd_get_unique_fname(char* proposed){
+    char metadata[sizeof(SDCARD_BASE_PATH "/" SDCARD_DEFAULT_FNAME_WAV)];
+    uint8_t len = sizeof(SDCARD_DEFAULT_FNAME_WAV) - 1;
+    uint32_t points_w = 0;
+    uint32_t points_r = 0;
+    e_syserr_t e = e_syserr_none;
+    if(!sd_file_exists(SDCARD_BASE_PATH "/" SDCARD_METADATA_FNAME)){
+        e = sd_write_txt((char*)SDCARD_DEFAULT_FNAME_WAV, sizeof(SDCARD_DEFAULT_FNAME_WAV), 
+                SDCARD_BASE_PATH "/" SDCARD_METADATA_FNAME, 0, &points_w);
+        if(e != e_syserr_none) return e;
+        strcpy(proposed, SDCARD_BASE_PATH "/" SDCARD_DEFAULT_FNAME_WAV);
+        return e_syserr_none;
+    }
+    e = sd_read_txt(metadata, sizeof(SDCARD_DEFAULT_FNAME_WAV), SDCARD_BASE_PATH "/" SDCARD_METADATA_FNAME, 0, &points_r);
+    if(e != e_syserr_none) return e;
+    uint16_t idx = 0;
+    char digits[5] = "xxxx";                                                // set up digit array
+    memcpy(digits, &metadata[len - 8], 4);                                  // copy found digits into digits array
+    if((e = str_to_4digit_uint(digits, &idx)) != e_syserr_none) return e;   // convert digit array to number and store in idx
+    if((e = uint_to_4digit_str(++idx, digits)) != e_syserr_none) return e;  // convert the incremented idx to digits
+    memcpy(&metadata[len - 8], digits, 4);                                  // put new digits in fname
+    e = sd_write_txt(metadata, sizeof(SDCARD_DEFAULT_FNAME_WAV), SDCARD_BASE_PATH "/" SDCARD_METADATA_FNAME, 0, &points_w);
+    if(e != e_syserr_none) return e;
+    sprintf(proposed, SDCARD_BASE_PATH "/" "%s", metadata);
+    return e_syserr_none;
+}
+
+#else
 e_syserr_t sd_get_unique_fname(char* proposed){
     if (!mounted) return e_syserr_sdcard_unmnted;
     uint8_t len = strlen(SDCARD_BASE_PATH "/" SDCARD_DEFAULT_FNAME_WAV);
@@ -302,6 +331,8 @@ e_syserr_t sd_get_unique_fname(char* proposed){
     }
     return e;
 }
+
+#endif
 
 void sd_job(void* p){
     char* args = jes_job_get_args();
