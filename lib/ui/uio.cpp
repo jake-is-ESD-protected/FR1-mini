@@ -380,7 +380,7 @@ void uio_job(void* p){
                 oled.fillRect(0, FR1_BUDDY_HEIGHT + 5,
                     SSD1306_LCDWIDTH, 20, BLACK);
                 oled.setCursor(0, BATTERY_BIG_HEIGHT + 5);
-                oled.printf("FW: v%d\n\r", FR1_FW_VERSION);
+                oled.printf("FW: v%d.%d%c\n\r", FR1_FW_VER_MAJ, FR1_FW_VER_MIN, (char)FR1_FW_VER_MOD);
                 oled.printf("SN#: %d\n\r", FR1_SER_NUM);
             }
             if(prio == uio_update_all){
