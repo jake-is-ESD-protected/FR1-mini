@@ -395,7 +395,7 @@ static inline e_syserr_t fsm_exit_idle(fsm_runtime_args_t* rta){
 
 static inline e_syserr_t fsm_exit_record(fsm_runtime_args_t* rta){
     audio_suspend_short();
-    jes_delay_job_ms(100); // let audio finish the last block
+    jes_delay_job_ms(200); // let audio finish the last block
     e_syserr_t e = wav_close_for_write(rta->wav_file);
     if(e != e_syserr_none) {
         #if FSM_INTERNAL_VERBOSE == 1
