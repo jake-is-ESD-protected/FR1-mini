@@ -4,8 +4,8 @@
 #include "syserr.h"
 #include <inttypes.h>
 
-#define SSD1306_LCDWIDTH 64
-#define SSD1306_LCDHEIGHT 48
+#define SSD1306_LCD_WIDTH 64
+#define SSD1306_LCD_HEIGHT 48
 #define OLED_RESET -1
 #define OLED_I2C_ADDRESS 0x3D
 

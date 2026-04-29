@@ -9,7 +9,7 @@
 #include "adc_base.h"
 #include "dsp_fr1.h"
 
-Adafruit_SSD1306 oled(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, &Wire, OLED_RESET);
+Adafruit_SSD1306 oled(SSD1306_LCD_WIDTH, SSD1306_LCD_HEIGHT, &Wire, OLED_RESET);
 
 void uio_wgt_update_cb_batt(void* p);
 void uio_wgt_update_cb_sett(void* p);
@@ -131,21 +131,21 @@ void uio_oled_title_screen(void){
     oled.clearDisplay();
     oled.display();
     oled.drawBitmap(0, 0, title_screen, 
-        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
+        SSD1306_LCD_WIDTH, SSD1306_LCD_HEIGHT, WHITE);
     oled.display();
 }
 
 void uio_oled_idle_screen(void){
     oled.clearDisplay();
     oled.drawBitmap(0, 0, idle_screen, 
-        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
+        SSD1306_LCD_WIDTH, SSD1306_LCD_HEIGHT, WHITE);
     uio_oled_draw_widgets_all();
 }
 
 void uio_oled_rec_screen(void){
     oled.clearDisplay();
     oled.drawBitmap(0, 0, rec_screen, 
-        SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT, WHITE);
+        SSD1306_LCD_WIDTH, SSD1306_LCD_HEIGHT, WHITE);
     uio_oled_draw_widgets_all();
 }
 
@@ -360,7 +360,7 @@ void uio_job(void* p){
 
             if(prio == uio_update_mid){
                 oled.fillRect(0, BATTERY_BIG_HEIGHT + 5,
-                    SSD1306_LCDWIDTH, 20, BLACK);
+                    SSD1306_LCD_WIDTH, 20, BLACK);
                 oled.setCursor(0, BATTERY_BIG_HEIGHT + 5);
                 oled.printf("V: %d mV\n\r", rtv.lipo_mv);
                 const uint32_t max_v = 4100;
@@ -378,7 +378,7 @@ void uio_job(void* p){
 
             if(prio == uio_update_mid){
                 oled.fillRect(0, FR1_BUDDY_HEIGHT + 5,
-                    SSD1306_LCDWIDTH, 20, BLACK);
+                    SSD1306_LCD_WIDTH, 20, BLACK);
                 oled.setCursor(0, BATTERY_BIG_HEIGHT + 5);
                 oled.printf("FW: v%d.%d%c\n\r", FR1_FW_VER_MAJ, FR1_FW_VER_MIN, (char)FR1_FW_VER_MOD);
                 oled.printf("SN#: %d\n\r", FR1_SER_NUM);
