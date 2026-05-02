@@ -204,7 +204,7 @@ e_syserr_t fsm_init(void){
         .wav_file = &fsm.cur_open_wav,
         .sr = AUDIO_SR_DEFAULT,
         .bps = 32,
-        .n_ch = 1,
+        .n_ch = AUDIO_MAX_NUM_CH, // start with compile time default
         .sd_mounted = 0,
         .var_args = NULL,
     };
