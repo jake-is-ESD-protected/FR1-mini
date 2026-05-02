@@ -167,11 +167,11 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
     return e;
 }
 
-e_syserr_t sd_stream_in(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_w){
+e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
     xSemaphoreTake(stream_lock, portMAX_DELAY);
-    *points_w = fwrite(data, sizeof(stereo_sample_t), len, f);
+    *points_w = fwrite(data, (bps/8)*nch, len, f);
     xSemaphoreGive(stream_lock);
     if(*points_w != len) { 
         return e_syserr_oom; 
@@ -179,11 +179,11 @@ e_syserr_t sd_stream_in(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* 
     return e_syserr_none;
 }
 
-e_syserr_t sd_stream_out(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_r){
+e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
     xSemaphoreTake(stream_lock, portMAX_DELAY);
-    *points_r = fread(data, sizeof(stereo_sample_t), len, f);
+    *points_r = fread(data, (bps/8)*nch, len, f);
     xSemaphoreGive(stream_lock);
     if(*points_r != len) { 
         return e_syserr_oom; 

@@ -10,7 +10,7 @@
 #define AUDIO_SERVER_JOB_MEM    (4096)
 #define AUDIO_FRAME_LEN         1024
 #define AUDIO_I2S_PORT          I2S_NUM_0
-#define AUDIO_MAX_NUM_CH        2
+#define AUDIO_MAX_NUM_CH        1
 #define AUDIO_SR_44100          44100
 #define AUDIO_SR_48000          48000
 #define AUDIO_SR_96000          96000
@@ -29,53 +29,53 @@ typedef enum{
     I2S_EVENT_RESTART
 }i2s_event_type_ext_t;
 
-typedef int32_t audio_base_t;   // for samples
-typedef float audio_val_t;      // for DSP results
+typedef int32_t audio_sample_base_t;
+typedef float audio_val_base_t;
 
-typedef struct stereo_sample{
-    int32_t l;
-    int32_t r;
-}stereo_sample_t;
+// typedef struct stereo_sample{
+//     int32_t l;
+//     int32_t r;
+// }stereo_sample_t;
 
 /// @brief Sample description in time. All channels run in parallel.
 /// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
 ///       the runtime can use less than that if wanted.
 typedef union {
     struct {
-        audio_base_t ch1;
+        audio_sample_base_t ch1;
         #if AUDIO_MAX_NUM_CH > 1
-        audio_base_t ch2;
+        audio_sample_base_t ch2;
         #endif
         #if AUDIO_MAX_NUM_CH > 2
-        audio_base_t ch3;
+        audio_sample_base_t ch3;
         #endif
         #if AUDIO_MAX_NUM_CH > 3
-        audio_base_t ch4;
+        audio_sample_base_t ch4;
         #endif
     }_chx;
-    audio_base_t ch[AUDIO_MAX_NUM_CH];
+    audio_sample_base_t ch[AUDIO_MAX_NUM_CH];
 }audio_sample_t;
 
-typedef struct stereo_value{
-    float l;
-    float r;
-}stereo_value_t;
+// typedef struct stereo_value{
+//     float l;
+//     float r;
+// }stereo_value_t;
 
 typedef union {
     struct {
-        audio_val_t ch1;
+        audio_val_base_t ch1;
         #if AUDIO_MAX_NUM_CH > 1
-        audio_val_t ch2;
+        audio_val_base_t ch2;
         #endif
         #if AUDIO_MAX_NUM_CH > 2
-        audio_val_t ch3;
+        audio_val_base_t ch3;
         #endif
         #if AUDIO_MAX_NUM_CH > 3
-        audio_val_t ch4;
+        audio_val_base_t ch4;
         #endif
     }_chx;
-    audio_val_t ch[AUDIO_MAX_NUM_CH];
-}stereo_val_t;
+    audio_val_base_t ch[AUDIO_MAX_NUM_CH];
+}audio_val_t;
 
 
 /// @brief Initializes the I2S audio interface.
@@ -91,14 +91,21 @@ e_syserr_t audio_init(uint32_t sampleRate, uint8_t bclk, uint8_t ws, uint8_t dat
 /// @note Is part of the common signature interface for the init routine.
 e_syserr_t audio_init_default(void);
 
+/// @brief 
+/// @param  
+/// @return 
+audio_sample_t* _audio_get_buffer(void);
+
 /// @brief Manages the queue ISR for audio I/O.
 /// @param p Pointer to job parameters.
 void audio_sampler(void* p);
 
 /// @brief Audio reader function. To be used in FSM state function referenced by "state_func"
-/// @param data Pointer to stereo input data.
-/// @param len Length of total data in stereo samples.
-void audio_read(stereo_sample_t* data, uint32_t len);
+/// @param data Pointer to audio input data.
+/// @param len Length of total data in samples.
+/// @param bps Bits per single channel sample (resolution).
+/// @param nch Amount of active channels.
+void audio_read(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch);
 
 /// @brief Suspend the audio loop for a short amount of time for state transitions. 
 /// @note The length of suspension is set in `AUDIO_I2S_RESTART_MS`

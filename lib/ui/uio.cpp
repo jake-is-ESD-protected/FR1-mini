@@ -317,9 +317,9 @@ void uio_job(void* p){
 
         // idle routine
         if(rta.cur_state == e_fsm_state_idle){
-            uio_oled_update_db_vu((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg.l));
+            uio_oled_update_db_vu((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg._chx.ch1));
             if(prio == uio_update_mid){
-                uio_oled_update_db_text((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg.l));
+                uio_oled_update_db_text((int16_t)DSP_FR1_DBFS_TO_SPL(rtv.dbfs_avg._chx.ch1));
             }
             if(prio == uio_update_all){
                 

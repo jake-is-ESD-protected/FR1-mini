@@ -4,6 +4,7 @@
 #include <soc/i2s_reg.h>
 #include "fsm.h"
 
+static audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
 QueueHandle_t audio_evt_queue_in;
 
 e_syserr_t audio_init(uint32_t sampleRate, uint8_t bclk, uint8_t ws, uint8_t data_rx){
@@ -70,6 +71,10 @@ e_syserr_t audio_init_default(void){
                       AUDIO_PIN_MEMS_I2S_IN);
 }
 
+audio_sample_t* _audio_get_buffer(void){
+    return audio_buf;
+}
+
 void audio_sampler(void* p){
     static uint8_t act = 0;
     act = !act;
@@ -95,9 +100,10 @@ void audio_sampler(void* p){
     }
 }
 
-void audio_read(stereo_sample_t *data, uint32_t len){
+void audio_read(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch){
     uint32_t bytesRead = 0;
-    esp_err_t e = i2s_read(AUDIO_I2S_PORT, (uint8_t *)data, len * sizeof(stereo_sample_t), &bytesRead, portMAX_DELAY);
+    // TODO: Couple nch with .channel_format
+    esp_err_t e = i2s_read(AUDIO_I2S_PORT, (uint8_t *)data, len*(bps/8)*nch, &bytesRead, portMAX_DELAY);
     if(e != ESP_OK){
         uart_unif_writef("I2S read fail: %d\n\r", e);
     }

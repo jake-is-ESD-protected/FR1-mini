@@ -150,20 +150,24 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
 /// @brief Write to SD with an open file pointer supplied from outside.
 /// @param data Pointer to empty audio data array.
 /// @param len Length of data (not in byte).
+/// @param bps Bits per single channel sample (resolution).
+/// @param nch Amount of active channels.
 /// @param f Already opened file pointer.
 /// @param points_w Amount of data points that were actually written to the file.
 /// @return FR1 error code.
 /// @note The file pointer **needs** to be opened in 'ab' mode, otherwise data will be destroyed.
 /// Additionally, should an error occur, the function **does not** close the file. Close it from outside!
-e_syserr_t sd_stream_in(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_w);
+e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w);
 
 /// @brief Write to SD with an open file pointer supplied from outside.
 /// @param data Pointer to audio to be written.
 /// @param len Length of data (not in byte).
+/// @param bps Bits per single channel sample (resolution).
+/// @param nch Amount of active channels.
 /// @param f Already opened file pointer.
 /// @param points_r Amount of data points that were actually read from the file.
 /// @return FR1 error code.
-e_syserr_t sd_stream_out(stereo_sample_t* data, uint32_t len, FILE* f, uint32_t* points_r);
+e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r);
 
 /// @brief Open file stream indefinetely for out-of-scope operations.
 /// @param fname Name of the file. Has to exist.

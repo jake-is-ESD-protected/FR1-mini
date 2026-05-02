@@ -21,23 +21,27 @@ inline float sin_bhaskara_I(float x);
 /// @brief 
 /// @param data 
 /// @param len 
+/// @param nch
 /// @return 
-stereo_value_t dsp_fr1_samples_to_msqr_32b(stereo_sample_t* data, uint32_t len);
+audio_val_t dsp_fr1_samples_to_msqr_32b(audio_sample_t* data, uint32_t len, uint8_t nch);
 
 /// @brief 
 /// @param data 
 /// @param len 
+/// @param nch
 /// @return 
-stereo_value_t dsp_fr1_samples_to_dbfs_32b(stereo_sample_t* data, uint32_t len);
+audio_val_t dsp_fr1_samples_to_dbfs_32b(audio_sample_t* data, uint32_t len, uint8_t nch);
 
 /// @brief 
 /// @param msqr 
+/// @param nch
 /// @return 
-stereo_value_t dsp_fr1_samples_to_dbfs_32b_from_msqr(stereo_value_t msqr);
+audio_val_t dsp_fr1_samples_to_dbfs_32b_from_msqr(audio_val_t msqr, uint8_t nch);
 
 /// @brief 
 /// @param msqr 
+/// @param nch
 /// @return 
-stereo_value_t dsp_fr1_msqr_rolling_avg(stereo_value_t msqr);
+audio_val_t dsp_fr1_msqr_rolling_avg(audio_val_t msqr, uint8_t nch);
 
 #endif

@@ -92,7 +92,7 @@ e_syserr_t wav_write_samples(wav_file_t* wav, const void* samples, uint32_t samp
         return e_syserr_param;
     }
     uint32_t points_written;
-    e_syserr_t e = sd_stream_in((stereo_sample_t*)samples, sample_count, wav->file, &points_written);
+    e_syserr_t e = sd_stream_in((audio_sample_t*)samples, sample_count, wav->header.bitsPerSample, wav->header.numChannels, wav->file, &points_written);
     if (e != e_syserr_none) {
         return e;
     }
@@ -108,7 +108,7 @@ e_syserr_t wav_read_samples(wav_file_t* wav, const void* samples, uint32_t sampl
         return e_syserr_param;
     }
     uint32_t points_read = 0;
-    e_syserr_t e = sd_stream_out((stereo_sample_t*)samples, sample_count, wav->file, &points_read);
+    e_syserr_t e = sd_stream_out((audio_sample_t*)samples, sample_count, wav->header.bitsPerSample, wav->header.numChannels, wav->file, &points_read);
     if (e != e_syserr_none) {
         return e;
     }

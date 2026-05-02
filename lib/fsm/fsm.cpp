@@ -17,7 +17,7 @@ static inline void fsm_static_base_cb(fsm_runtime_args_t* rta);
 /// @param buf Audio buffer.
 /// @param len Length of buffer.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
-static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rta);
+static inline  void fsm_static_process_cb(audio_sample_t* buf, uint32_t len, fsm_runtime_args_t* rta);
 
 /// @brief Enter routine for idle state.
 /// @param rta Pointer to runtime arguments. Passed onto routine.
@@ -176,7 +176,6 @@ static fsm_t fsm = {
     // .cur_open_wav = WAV_DEFAULT_HEADER_STRUCT;
 };
 
-static stereo_sample_t audio_buf[AUDIO_FRAME_LEN*2];
 static fsm_runtime_args_t cur_rt_args;
 static fsm_runtime_values_t cur_rt_values;
 #ifdef UNIT_TEST
@@ -198,7 +197,7 @@ e_syserr_t fsm_init(void){
     fsm_runtime_args_t rta = {
         .target_state = e_fsm_state_idle,
         .cur_state = e_fsm_state_trans,
-        .data_buf = audio_buf,
+        .data_buf = _audio_get_buffer(),
         .data_len = AUDIO_FRAME_LEN,
         .samples_to_process = 0,
         .samples_tot = 0,
@@ -212,15 +211,21 @@ e_syserr_t fsm_init(void){
     fsm_runtime_values_t rtv = {
         .raw_data = rta.data_buf,
         .len = rta.data_len,
-        .msqr = {.l = 0., .r = 0.},
-        .msqr_avg = {.l = 0., .r = 0.},
-        .dbfs = {.l = 0., .r = 0.},
-        .dbfs_avg = {.l = 0., .r = 0.},
+        // .msqr = {.l = 0., .r = 0.},
+        // .msqr_avg = {.l = 0., .r = 0.},
+        // .dbfs = {.l = 0., .r = 0.},
+        // .dbfs_avg = {.l = 0., .r = 0.},
         .t_transaction = 0,
         .t_system = 0,
         .lipo_mv = 0,
         .plug_mv = 0,
     };
+    for(uint8_t i = 0; i < rta.n_ch; i++){
+        rtv.msqr.ch[i] = 0;
+        rtv.msqr_avg.ch[i] = 0;
+        rtv.dbfs.ch[i] = 0;
+        rtv.dbfs_avg.ch[i] = 0;
+    }
     lock_interface = xSemaphoreCreateMutex();
     e_syserr_t e = fsm_enter_idle(&rta);
     if(e != e_syserr_none) { return e; }
@@ -299,14 +304,14 @@ static inline void fsm_static_base_cb(fsm_runtime_args_t* rt_args){
     fsm_update_runtime_values(&rtv);
 }
 
-static inline  void fsm_static_process_cb(stereo_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
+static inline  void fsm_static_process_cb(audio_sample_t* buf, uint32_t len, fsm_runtime_args_t* rt_args){
     fsm_runtime_values_t rtv = fsm_get_runtime_values();
     rtv.raw_data = buf;
     rtv.len = AUDIO_FRAME_LEN;
-    rtv.msqr = dsp_fr1_samples_to_msqr_32b(rtv.raw_data, rtv.len);
-    rtv.msqr_avg = dsp_fr1_msqr_rolling_avg(rtv.msqr);
-    rtv.dbfs = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr);
-    rtv.dbfs_avg = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr_avg);
+    rtv.msqr = dsp_fr1_samples_to_msqr_32b(rtv.raw_data, rtv.len, rt_args->n_ch);
+    rtv.msqr_avg = dsp_fr1_msqr_rolling_avg(rtv.msqr, rt_args->n_ch);
+    rtv.dbfs = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr, rt_args->n_ch);
+    rtv.dbfs_avg = dsp_fr1_samples_to_dbfs_32b_from_msqr(rtv.msqr_avg, rt_args->n_ch);
     fsm_update_runtime_values(&rtv);
 }
 
@@ -443,8 +448,8 @@ e_syserr_t fsm_exit_state(fsm_state_t s, fsm_runtime_args_t* rta){
 
 static inline void fsm_idle(fsm_runtime_args_t* rta){
     static uint8_t frame_pos = 0;
-    audio_read(&audio_buf[rta->data_len*(frame_pos)], rta->data_len);
-    fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
+    audio_read(&rta->data_buf[rta->data_len*(frame_pos)], rta->data_len, rta->bps, rta->n_ch);
+    fsm_static_process_cb(&rta->data_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
     fsm_static_base_cb(rta);
     frame_pos = !frame_pos;
 }
@@ -453,10 +458,10 @@ static inline void fsm_record(fsm_runtime_args_t* rta) {
     e_syserr_t e;
     static uint8_t frame_pos = 0;
     static uint8_t test = 0;
-    audio_read(&audio_buf[rta->data_len * frame_pos], rta->data_len);
-    fsm_static_process_cb(&audio_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
+    audio_read(&rta->data_buf[rta->data_len * frame_pos], rta->data_len, rta->bps, rta->n_ch);
+    fsm_static_process_cb(&rta->data_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
     fsm_static_base_cb(rta);
-    e = wav_write_samples(rta->wav_file, &audio_buf[rta->data_len * (!frame_pos)], rta->data_len);
+    e = wav_write_samples(rta->wav_file, &rta->data_buf[rta->data_len * (!frame_pos)], rta->data_len);
     if(e != e_syserr_none && e != e_syserr_oom){
         rta->samples_to_process = 0;
         // this is an assumption:

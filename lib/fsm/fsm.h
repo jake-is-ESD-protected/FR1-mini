@@ -53,7 +53,7 @@ typedef enum fsm_state_t{
 typedef struct fsm_runtime_args_t{
     fsm_state_t target_state;   // what the rta wants
     fsm_state_t cur_state;      // what is currently in the fsm
-    stereo_sample_t* data_buf;
+    audio_sample_t* data_buf;
     uint32_t data_len;
     uint32_t samples_to_process;
     uint32_t samples_tot;
@@ -67,12 +67,12 @@ typedef struct fsm_runtime_args_t{
 
 /// @brief Runtime values obtained from state routine.
 typedef struct fsm_runtime_values_t{
-    stereo_sample_t* raw_data;
+    audio_sample_t* raw_data;
     uint32_t len;
-    stereo_value_t msqr;
-    stereo_value_t msqr_avg;
-    stereo_value_t dbfs;
-    stereo_value_t dbfs_avg;
+    audio_val_t msqr;
+    audio_val_t msqr_avg;
+    audio_val_t dbfs;
+    audio_val_t dbfs_avg;
     uint32_t t_transaction;
     int64_t t_system;
     uint32_t lipo_mv;
