@@ -126,7 +126,7 @@ void record_job(void* p){
             jes_throw_error((jes_err_t)e_syserr_oom);
             continue;
         }
-        uint32_t max_samples = free_kbytes * 1024 / (rta.bps * rta.n_ch); 
+        uint32_t max_samples = free_kbytes * 1024 / ((rta.bps/8) * rta.n_ch); 
 
         if(strcmp(arg, "toggle") == 0){
             if(rta.cur_state == e_fsm_state_rec){
@@ -185,7 +185,7 @@ void record_job(void* p){
             rta.wav_file = &wav;
             rta.sr = AUDIO_SR_DEFAULT;
             rta.bps = 32;
-            rta.n_ch = 1;
+            rta.n_ch = AUDIO_MAX_NUM_CH;
 
             FSM_JCCL_TRANSITION_OR_CONTINUE(rta.cur_state, e_fsm_state_rec, &rta);
         }
