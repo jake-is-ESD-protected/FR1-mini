@@ -10,7 +10,6 @@ static inline audio_val_t dsp_fr1_sample_cleanup(audio_sample_t data, uint8_t nc
     static audio_val_t dc_values = {0};
     audio_val_t scaled;
     for(uint8_t i = 0; i < nch; i++){
-        dc_values.ch[i] = 0.;
         data.ch[i] >>= 8;
         scaled.ch[i] = (float)data.ch[i] * INT24_SCALE;
         dc_values.ch[i] += DSP_FR1_DC_FILTER_ALPHA * (scaled.ch[i] - dc_values.ch[i]);
@@ -20,7 +19,7 @@ static inline audio_val_t dsp_fr1_sample_cleanup(audio_sample_t data, uint8_t nc
 }
 
 audio_val_t dsp_fr1_samples_to_msqr_32b(audio_sample_t* data, uint32_t len, uint8_t nch){
-    audio_val_t msqr;
+    audio_val_t msqr = {0};
     for(uint8_t i = 0; i < nch; i++){
         msqr.ch[i] = 0.;
     }
