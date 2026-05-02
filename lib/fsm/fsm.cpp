@@ -457,7 +457,6 @@ static inline void fsm_idle(fsm_runtime_args_t* rta){
 static inline void fsm_record(fsm_runtime_args_t* rta) {
     e_syserr_t e;
     static uint8_t frame_pos = 0;
-    static uint8_t test = 0;
     audio_read(&rta->data_buf[rta->data_len * frame_pos], rta->data_len, rta->bps, rta->n_ch);
     fsm_static_process_cb(&rta->data_buf[rta->data_len*(!frame_pos)], rta->data_len, rta);
     fsm_static_base_cb(rta);
