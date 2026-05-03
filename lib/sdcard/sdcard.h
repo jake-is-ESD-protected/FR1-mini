@@ -21,6 +21,7 @@ by registering the function `sd_job` as a job.
 #define SDCARD_BASE_PATH            "/sdcard"
 #define SDCARD_PAGE_SIZE_BYTE       512
 #define SDCARD_SERVER_JOB_NAME      "sdcard"
+#define SDCARD_STREAMER_JOB_NAME    "sdstrm"
 #define SDCARD_MAX_FILES_DEFAULT    5
 #define SDCARD_MAX_FREQ_BUS_DEFAULT SDMMC_FREQ_52M // SDMMC_FREQ_DEFAULT
 
@@ -46,6 +47,19 @@ typedef enum {
     sd_cmd_read_chunk,
     NUM_SD_ACTIONS
 } sd_cmd_t;
+
+typedef enum{
+    sd_stream_direction_in,
+    sd_stream_direction_out
+}sd_stream_direction_t;
+
+typedef struct{
+    FILE* f;
+    audio_sample_t* data;
+    uint32_t block_len;
+    uint32_t type_in_byte;
+    sd_stream_direction_t direction;
+}sd_stream_descriptor_t;
 
 /// @brief Initialize the SDMMC config struct.
 /// @param max_files Max amount of files in FS.

@@ -8,9 +8,9 @@
 
 #define AUDIO_SERVER_JOB_NAME   "audio"
 #define AUDIO_SERVER_JOB_MEM    (4096)
-#define AUDIO_FRAME_LEN         1024
+#define AUDIO_FRAME_LEN         (1024)
 #define AUDIO_I2S_PORT          I2S_NUM_0
-#define AUDIO_MAX_NUM_CH        1
+#define AUDIO_MAX_NUM_CH        2
 #define AUDIO_SR_44100          44100
 #define AUDIO_SR_48000          48000
 #define AUDIO_SR_96000          96000

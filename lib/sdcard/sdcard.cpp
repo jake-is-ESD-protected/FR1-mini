@@ -11,6 +11,10 @@
 #include "utils.h"
 #include "fsm.h"
 
+/// @brief 
+/// @param p 
+static inline void __sd_transfer(void* p);
+
 static sdmmc_host_t host = SDSPI_HOST_DEFAULT();
 static sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
 static esp_vfs_fat_sdmmc_mount_config_t mount_config;
@@ -33,7 +37,7 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz){
     bus_cfg.sclk_io_num = PIN_SDSPI_SCK;
     bus_cfg.quadwp_io_num = -1;
     bus_cfg.quadhd_io_num = -1;
-    bus_cfg.max_transfer_sz = 4000;
+    bus_cfg.max_transfer_sz = 16384;
 
     mount_config.format_if_mount_failed = false;
     mount_config.max_files = max_files;
@@ -49,6 +53,8 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz){
     stream_lock = xSemaphoreCreateMutex();
     jes_err_t je;
     je = jes_register_job(SDCARD_SERVER_JOB_NAME, 2*4096, 1, sd_job, 0);
+    if(je != e_err_no_err) { jes_throw_error(je); return (e_syserr_t)je;}
+    je = jes_register_job(SDCARD_STREAMER_JOB_NAME, 4*4096, 1, __sd_transfer, 1);
     if(je != e_err_no_err) { jes_throw_error(je); return (e_syserr_t)je;}
     return e_syserr_none;
 }
@@ -170,24 +176,40 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
 e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
-    xSemaphoreTake(stream_lock, portMAX_DELAY);
-    *points_w = fwrite(data, (bps/8)*nch, len, f);
-    xSemaphoreGive(stream_lock);
-    if(*points_w != len) { 
-        return e_syserr_oom; 
-    }
+    static sd_stream_descriptor_t in_stream = {0};
+    in_stream.f = f;
+    in_stream.data = data;
+    in_stream.block_len = len;
+    in_stream.type_in_byte = (bps/8)*nch;
+    in_stream.direction = sd_stream_direction_in;
+    *points_w = len; // Hack for now
+    jes_notify_job(SDCARD_STREAMER_JOB_NAME, &in_stream);
+    // xSemaphoreTake(stream_lock, portMAX_DELAY);
+    // *points_w = fwrite(data, (bps/8)*nch, len, f);
+    // xSemaphoreGive(stream_lock);
+    // if(*points_w != len) { 
+    //     return e_syserr_oom; 
+    // }
     return e_syserr_none;
 }
 
 e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r){
     if (!mounted) return e_syserr_sdcard_unmnted;    // TODO: should this be checked every time?
     if (f == NULL) return e_syserr_file_generic;    // TODO: should this be checked every time?
-    xSemaphoreTake(stream_lock, portMAX_DELAY);
-    *points_r = fread(data, (bps/8)*nch, len, f);
-    xSemaphoreGive(stream_lock);
-    if(*points_r != len) { 
-        return e_syserr_oom; 
-    }
+    static sd_stream_descriptor_t out_stream = {0};
+    out_stream.f = f;
+    out_stream.data = data;
+    out_stream.block_len = len;
+    out_stream.type_in_byte = (bps/8)*nch;
+    out_stream.direction = sd_stream_direction_out;
+    *points_r = len; // Hack for now
+    jes_notify_job(SDCARD_STREAMER_JOB_NAME, &out_stream);
+    // xSemaphoreTake(stream_lock, portMAX_DELAY);
+    // *points_r = fread(data, (bps/8)*nch, len, f);
+    // xSemaphoreGive(stream_lock);
+    // if(*points_r != len) { 
+    //     return e_syserr_oom; 
+    // }
     return e_syserr_none;
 }
 
@@ -400,5 +422,26 @@ void sd_job(void* p){
     }
     else{
         SCOPE_LOG_PJ(pj, "Unknown SD command.");
+    }
+}
+
+static inline void __sd_transfer(void* p){
+    job_struct_t* pj = (job_struct_t*)p;
+    pj->role = e_role_core;
+    while(1){
+        sd_stream_descriptor_t stream = *(sd_stream_descriptor_t*)jes_wait_for_notification();
+        size_t points_transferred = 0;
+        xSemaphoreTake(stream_lock, portMAX_DELAY);
+        if(stream.direction == sd_stream_direction_in){
+            points_transferred = fwrite(stream.data, stream.type_in_byte, stream.block_len, stream.f);
+        }
+        if(stream.direction == sd_stream_direction_out){
+            points_transferred = fread(stream.data, stream.type_in_byte, stream.block_len, stream.f);
+        }
+        xSemaphoreGive(stream_lock);
+        if(points_transferred != stream.block_len) { 
+            uart_unif_writef("Data given: %d, transferred: %d\n\r", stream.block_len, points_transferred);
+            jes_throw_error((jes_err_t)e_syserr_file_generic); 
+        }
     }
 }

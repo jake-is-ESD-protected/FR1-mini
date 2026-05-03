@@ -30,12 +30,12 @@ e_syserr_t audio_init(uint32_t sampleRate, uint8_t bclk, uint8_t ws, uint8_t dat
         .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
         .sample_rate = sampleRate,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, //I2S_CHANNEL_FMT_RIGHT_LEFT,
+        .channel_format = /*I2S_CHANNEL_FMT_ONLY_LEFT,*/ I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-        .dma_buf_count = 8,
-        .dma_buf_len = 512,
-        .use_apll = true,
+        .dma_buf_count = 4,
+        .dma_buf_len = 256,
+        .use_apll = false,
         .tx_desc_auto_clear = true,
         .fixed_mclk = 0,
     };
@@ -81,11 +81,13 @@ void audio_sampler(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
     while(act){
+        __job_set_timing_begin(__get_systime_ms(), pj);
         i2s_event_t evt;
         fsm_state_struct_t* state = (fsm_state_struct_t*) jes_job_get_param();
         static bool tx_occ = false;
         static bool rx_occ = false;
         if (xQueueReceive(audio_evt_queue_in, &evt, portMAX_DELAY) == pdPASS){
+            uart_unif_writef("(%d) Audio job trigger on evt %d!\n\r", __get_systime_ms(), evt.type);
             if(evt.type == (i2s_event_type_t)I2S_EVENT_RESTART){
                 jes_delay_job_ms(AUDIO_I2S_RESTART_MS);
                 SCOPE_LOG_PJ(pj, "Audio was restarted!");
@@ -97,6 +99,7 @@ void audio_sampler(void* p){
             // }
             state->routine(&state->rt_args);
         }
+        __job_set_timing_end(__get_systime_ms(), pj);
     }
 }
 

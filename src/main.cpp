@@ -60,6 +60,10 @@ void fr1_system_init(void){
     jes_delay_job_ms(50);
     je = jes_launch_job(AUDIO_SERVER_JOB_NAME);
     if(je != e_err_no_err) { SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "Audio engine fail."); return; }
+    SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Starting SD streamer...");
+    jes_delay_job_ms(50);
+    je = jes_launch_job(SDCARD_STREAMER_JOB_NAME);
+    if(je != e_err_no_err) { SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "SD streamer fail."); return; }
 
     for(uint8_t i = 0; i < FSM_JOB_N; i++){
         SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Launching state handler <%s>", fsm_jccl_jobs[i]);
