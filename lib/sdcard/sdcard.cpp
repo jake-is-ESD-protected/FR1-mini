@@ -100,8 +100,11 @@ e_syserr_t sd_get_free_kbytes(uint32_t* free_bytes, uint32_t* all_bytes){
     if(res != FR_OK) return e_syserr_driver_fail;
     
     uint32_t bytes_per_cluster = fs->csize * card->csd.sector_size;
-    *free_bytes = (uint32_t)fre_clust * bytes_per_cluster / 1024;
-    *all_bytes = (uint32_t)(fs->n_fatent - 2) * bytes_per_cluster / 1024;
+
+    uint64_t free_bytes_64 = (uint64_t)fre_clust * bytes_per_cluster;
+    uint64_t all_bytes_64 = (uint64_t)(fs->n_fatent - 2) * bytes_per_cluster;
+    *free_bytes = (uint32_t)(free_bytes_64 / 1000);
+    *all_bytes = (uint32_t)(all_bytes_64 / 1000);    
     return e_syserr_none;
 }
 
@@ -428,19 +431,21 @@ void sd_job(void* p){
 static inline void __sd_transfer(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
+    static audio_sample_t local_buf[AUDIO_FRAME_LEN];
     while(1){
         sd_stream_descriptor_t stream = *(sd_stream_descriptor_t*)jes_wait_for_notification();
         size_t points_transferred = 0;
+        memcpy(local_buf, stream.data, stream.type_in_byte * stream.block_len);
         xSemaphoreTake(stream_lock, portMAX_DELAY);
         if(stream.direction == sd_stream_direction_in){
-            points_transferred = fwrite(stream.data, stream.type_in_byte, stream.block_len, stream.f);
+            points_transferred = fwrite(local_buf, stream.type_in_byte, stream.block_len, stream.f);
         }
         if(stream.direction == sd_stream_direction_out){
-            points_transferred = fread(stream.data, stream.type_in_byte, stream.block_len, stream.f);
+            points_transferred = fread(local_buf, stream.type_in_byte, stream.block_len, stream.f);
         }
         xSemaphoreGive(stream_lock);
         if(points_transferred != stream.block_len) { 
-            uart_unif_writef("Data given: %d, transferred: %d\n\r", stream.block_len, points_transferred);
+            SCOPE_LOG_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
             jes_throw_error((jes_err_t)e_syserr_file_generic); 
         }
     }

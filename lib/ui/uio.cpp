@@ -176,7 +176,7 @@ void uio_oled_file_screen(void){
         SD_WIDTH, SD_HEIGHT, WHITE);
     oled.setCursor(0, SD_HEIGHT + 5);
     fsm_runtime_values_t rta = fsm_get_runtime_values();
-    oled.printf("%d/%d\n\rMB free", rta.sd_free_kb/1000, rta.sd_tot_kb/1000);
+    oled.printf("%d/%d\n\rGB free", rta.sd_free_kb/1000/1000, rta.sd_tot_kb/1000/1000);
     uio_oled_draw_widgets_all();
 }
 
