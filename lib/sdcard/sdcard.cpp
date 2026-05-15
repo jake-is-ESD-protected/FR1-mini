@@ -99,8 +99,9 @@ e_syserr_t sd_get_free_kbytes(uint32_t* free_bytes, uint32_t* all_bytes){
     FRESULT res = f_getfree("0:", &fre_clust, &fs);
     if(res != FR_OK) return e_syserr_driver_fail;
     
-    uint32_t bytes_per_cluster = fs->csize * card->csd.sector_size;
-
+    // Use 512 for filesystem sector size (FatFs always uses 512-byte sectors for SD cards)
+    // Do NOT use card->csd.sector_size which may report physical sector size differently
+    uint64_t bytes_per_cluster = (uint64_t)fs->csize * 512;
     uint64_t free_bytes_64 = (uint64_t)fre_clust * bytes_per_cluster;
     uint64_t all_bytes_64 = (uint64_t)(fs->n_fatent - 2) * bytes_per_cluster;
     *free_bytes = (uint32_t)(free_bytes_64 / 1000);
@@ -422,6 +423,15 @@ void sd_job(void* p){
             SCOPE_LOG_PJ(pj, "Error whlie deleting file. (%d)", e);
             return;
         }
+    }
+    else if(strcmp(arg, "mem") == 0){
+        uint32_t free_kbytes = 0;
+        uint32_t all_kbytes = 0;
+        if(sd_get_free_kbytes(&free_kbytes, &all_kbytes) != e_syserr_none){
+            SCOPE_LOG_PJ(pj, "Free space can't be identified.");
+            return;
+        }
+        SCOPE_LOG_PJ(pj, "%d/%d kB free", free_kbytes, all_kbytes);
     }
     else{
         SCOPE_LOG_PJ(pj, "Unknown SD command.");
