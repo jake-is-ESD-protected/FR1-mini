@@ -7,6 +7,7 @@
 #include "wav.h"
 #include "utils.h"
 #include "sdcard.h"
+#include "sdcard_jccl.h"
 #include "adc_base.h"
 #include "uii.h"
 #include "uio.h"
@@ -36,7 +37,7 @@ static init_func init_funcs[e_FR1_NUM_MODULES] = {
 const char init_func_ids [e_FR1_NUM_MODULES][12] = {
     AUDIO_SERVER_JOB_NAME,
     FSM_CTRL_JOB_NAME,
-    SDCARD_SERVER_JOB_NAME,
+    SDCARD_JOB_NAME,
     ADC_BASE_JOB_NAME,
     "uii",
     "uio"
@@ -58,12 +59,12 @@ void fr1_system_init(void){
     uio_led_toggle();
     SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Starting audio engine...");
     jes_delay_job_ms(50);
-    je = jes_launch_job(AUDIO_SERVER_JOB_NAME);
-    if(je != e_err_no_err) { SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "Audio engine fail."); return; }
-    SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Starting SD streamer...");
-    jes_delay_job_ms(50);
-    je = jes_launch_job(SDCARD_STREAMER_JOB_NAME);
-    if(je != e_err_no_err) { SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "SD streamer fail."); return; }
+#ifndef FR1_DISABLE_AUDIO_START
+    e = audio_start();
+    if(e != e_syserr_none) { SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "Audio engine fail."); return; }
+#else
+    SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Audio engine disabled.");
+#endif
 
     for(uint8_t i = 0; i < FSM_JOB_N; i++){
         SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Launching state handler <%s>", fsm_jccl_jobs[i]);
@@ -75,6 +76,7 @@ void fr1_system_init(void){
     uio_led_off();
     uio_oled_idle_screen();
 
+#ifndef FR1_DISABLE_UIO_JOB
     SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "Dispatching UI update timer...");
     je = jes_launch_job(UIO_JOB_NAME);
     if(je != e_err_no_err) { 
@@ -86,6 +88,9 @@ void fr1_system_init(void){
         SCOPE_LOG_INIT(FR1_DEBUG_MSG_FATAL "UI timer init fail (%d).", e); 
         return; 
     }
+#else
+    SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "UI update timer disabled.");
+#endif
     SCOPE_LOG_INIT(FR1_DEBUG_MSG_INFO "|O === FR1 === O|");
 }
 

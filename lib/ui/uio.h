@@ -23,7 +23,9 @@
 #define UIO_OLED_WGT_BATT_W 6
 #define UIO_OLED_WGT_BATT_H 4
 
+#ifndef UIO_LED_PIN
 #define UIO_LED_PIN 5
+#endif
 
 #define UI_WGT_MAX_NAME_LEN 5
 

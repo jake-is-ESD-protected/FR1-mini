@@ -7,7 +7,16 @@
 #include <Adafruit_SSD1306.h>
 #include "Wire.h"
 #include "adc_base.h"
-#include "dsp_fr1.h"
+#include "dsp_frx.h"
+#define DSP_FR1_MIC_SENS -26
+#define DSP_FR1_DBFS_TO_SPL(x) ((x) + (-1)*DSP_FR1_MIC_SENS + 94)
+
+#ifndef UIO_JOB_MEM
+#define UIO_JOB_MEM 2048
+#endif
+#ifndef UIO_OLED_ROTATION
+#define UIO_OLED_ROTATION 2
+#endif
 
 Adafruit_SSD1306 oled(SSD1306_LCD_WIDTH, SSD1306_LCD_HEIGHT, &Wire, OLED_RESET);
 
@@ -66,7 +75,7 @@ static uio_wgt_t widgets[] = {
 };
 
 e_syserr_t uio_init(void){
-    jes_err_t je = jes_register_job(UIO_JOB_NAME, 2048, 1, uio_job, 1);
+    jes_err_t je = jes_register_job(UIO_JOB_NAME, 2048, 1, uio_job, 1, 1);
     if(je != e_err_no_err) return (e_syserr_t)je;
     pinMode(UIO_LED_PIN, OUTPUT);
     uio_oled_init();
@@ -79,8 +88,7 @@ void uio_oled_init(void){
         // ret err
     }
     oled.begin(SSD1306_SWITCHCAPVCC, 0x3D);
-    // FR1 mini screen is soldered upside down
-    oled.setRotation(2);
+    oled.setRotation(UIO_OLED_ROTATION);
     // Set support for 64x48 on HW level
     oled.ssd1306_command(SSD1306_SETMULTIPLEX);
     oled.ssd1306_command(0x2F);  // 48-1 = 47

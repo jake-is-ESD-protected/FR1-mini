@@ -11,10 +11,11 @@ e_syserr_t adc_base_init(uint8_t pin){
         return e_syserr_param;
     }
     pinMode(pin, INPUT);
-    jes_err_t je = jes_register_job(ADC_BASE_JOB_NAME, 2048, 1, adc_base_job, 0);
-    // allow multiple calls (multiple ADCs)
-    if(je != e_err_no_err && je != e_err_duplicate) return (e_syserr_t)je;
-    __init = 1;
+    if(!__init){
+        jes_err_t je = jes_register_job(ADC_BASE_JOB_NAME, 2048, 1, adc_base_job, 0, 1);
+        if(je != e_err_no_err && je != e_err_duplicate) return (e_syserr_t)je;
+        __init = 1;
+    }
     return e_syserr_none;
 }
 
